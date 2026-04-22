@@ -1,0 +1,32 @@
+{
+  "name": "invoice-rec-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "element-plus": "^2.8.8",
+    "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^2.16.105",
+    "sortablejs": "^1.15.6",
+    "vue": "^3.5.13",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/pdfjs-dist": "^2.10.378",
+    "@types/node": "^22.15.21",
+    "@vitejs/plugin-vue": "^4.6.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "3.3.5",
+    "typescript": "5.2.2",
+    "vite": "^4.5.3",
+    "vue-tsc": "^1.8.27"
+  }
+}
