@@ -51,12 +51,12 @@
         <div class="text-xs text-gray-500">拖拽页面可排序；点击“剪断/缝合”控制分组；点击“删除”丢入垃圾桶</div>
       </div>
 
-      <div v-if="pages.length" class="border rounded-[12px] p-3 bg-[color:var(--rf-surface-low)]">
-        <div ref="sortableRoot" class="flex flex-wrap gap-3">
+      <div v-if="pages.length" class="border rounded-[12px] p-3 md:p-4 bg-[color:var(--rf-surface-low)]">
+        <div ref="sortableRoot" class="rf-thumb-grid">
           <div
             v-for="p in pages"
             :key="p.id"
-            class="w-[160px] border rounded-[12px] p-2 bg-white shadow-[0px_1px_2px_rgba(15,23,42,0.04)]"
+            class="rf-thumb-card border rounded-[12px] p-3 md:p-4 bg-white shadow-[0px_1px_2px_rgba(15,23,42,0.04)]"
             :class="p.deleted ? 'opacity-40' : ''"
             :data-id="p.id"
           >
@@ -66,9 +66,9 @@
                 {{ p.deleted ? '恢复' : '删除' }}
               </el-button>
             </div>
-            <div class="w-full flex justify-center">
-              <img v-if="p.thumbUrl" :src="p.thumbUrl" class="max-w-full" />
-              <div v-else class="h-[180px] w-full bg-gray-100 animate-pulse"></div>
+            <div class="w-full">
+              <img v-if="p.thumbUrl" :src="p.thumbUrl" class="w-full h-auto rounded-[8px]" />
+              <div v-else class="w-full aspect-[3/4] bg-gray-100 animate-pulse rounded-[8px]"></div>
             </div>
 
             <div class="mt-2 flex items-center justify-between" v-if="p.isLast !== true">
@@ -278,8 +278,24 @@ async function renderThumbs() {
   const bytes = pdfBytes.value
   if (!bytes) return
 
+  const w = window.innerWidth
+  const cols = w > 1180 ? 5 : w > 500 ? 3 : 1
+  const gapPx = w > 500 ? 16 : 12
+
+  const containerWidth = sortableRoot.value?.clientWidth ?? w
+  const cardCssWidth = Math.max(240, Math.floor((containerWidth - gapPx * (cols - 1)) / cols))
+
+  const targetWidth = Math.min(720, cardCssWidth)
+  const pixelRatio = Math.min(2, window.devicePixelRatio || 1)
+
   for (const p of pages.value) {
-    const canvas = await renderPdfPageToCanvas({ pdfBytes: bytes, pageNumber1: p.originalIndex + 1, maxWidth: 140 })
+    const canvas = await renderPdfPageToCanvas({
+      pdfBytes: bytes,
+      pageNumber1: p.originalIndex + 1,
+      maxWidth: targetWidth,
+      pixelRatio,
+      maxRenderScale: 3
+    })
     p.thumbUrl = canvas.toDataURL('image/png')
   }
 }
@@ -364,3 +380,35 @@ onBeforeUnmount(() => {
   sortable = null
 })
 </script>
+
+<style scoped>
+.rf-thumb-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.rf-thumb-card {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 500px) {
+  .rf-thumb-grid {
+    gap: 16px;
+  }
+
+  .rf-thumb-card {
+    flex-basis: calc((100% - 16px * 2) / 3);
+    max-width: calc((100% - 16px * 2) / 3);
+  }
+}
+
+@media (min-width: 1181px) {
+  .rf-thumb-card {
+    flex-basis: calc((100% - 16px * 4) / 5);
+    max-width: calc((100% - 16px * 4) / 5);
+  }
+}
+</style>

@@ -14,13 +14,22 @@ export async function renderPdfPageToCanvas(opts: {
   pdfBytes: ArrayBuffer
   pageNumber1: number
   maxWidth: number
+  pixelRatio?: number
+  maxRenderScale?: number
 }): Promise<HTMLCanvasElement> {
   const loadingTask = pdfjsLib.getDocument({ data: opts.pdfBytes })
   const doc = await loadingTask.promise
   const page = await doc.getPage(opts.pageNumber1)
-  const viewport = page.getViewport({ scale: 1 })
-  const scale = Math.min(1, opts.maxWidth / viewport.width)
-  const v = page.getViewport({ scale })
+
+  const baseViewport = page.getViewport({ scale: 1 })
+  const baseScale = opts.maxWidth / baseViewport.width
+
+  const dpr = opts.pixelRatio ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)
+  const effectiveDpr = Math.min(2, dpr)
+
+  const maxRenderScale = opts.maxRenderScale ?? 3
+  const renderScale = Math.min(maxRenderScale, Math.max(0.1, baseScale * effectiveDpr))
+  const v = page.getViewport({ scale: renderScale })
 
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
