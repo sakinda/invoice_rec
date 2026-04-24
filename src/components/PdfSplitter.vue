@@ -46,7 +46,7 @@
       </div>
 
       <div v-else-if="pages.length" class="flex items-center gap-2">
-        <el-button type="primary" :disabled="busy" @click="confirmSplit">确认生成拆分 PDF</el-button>
+        <el-button type="primary" :disabled="busy" @click="confirmSplit">拆分 PDF</el-button>
         <el-button :disabled="busy" @click="resetAll">重置</el-button>
         <div class="text-xs text-gray-500">拖拽页面可排序；点击“剪断/缝合”控制分组；点击“删除”丢入垃圾桶</div>
       </div>
@@ -82,10 +82,17 @@
       </div>
 
       <div v-if="pages.length" class="text-sm">
-        <div class="font-medium mb-1">逻辑分组 groups（0-based 原始页码索引）</div>
-        <pre class="bg-[color:var(--rf-surface-low)] border rounded-[12px] p-3 overflow-auto text-xs font-medium">{{
-          JSON.stringify(groups, null, 2)
-        }}</pre>
+        <div class="flex items-center justify-between gap-3">
+          <div class="font-medium">逻辑分组</div>
+          <div class="text-xs text-[color:var(--rf-text-muted)]">{{ groupsSummary }}</div>
+        </div>
+        <div class="mt-2 flex gap-2 overflow-x-auto pb-1">
+          <el-tooltip v-for="(g, idx) in groups" :key="idx" placement="top" :content="formatGroupFull(g)">
+            <div class="px-3 py-2 rounded-full border bg-white text-xs font-medium whitespace-nowrap">
+              组{{ idx + 1 }}: {{ formatGroupCompact(g) }}
+            </div>
+          </el-tooltip>
+        </div>
       </div>
     </div>
   </el-card>
@@ -143,6 +150,8 @@ const activeFileCount = computed(() => fileItems.value.filter(it => !it.deleted)
 const sortableRoot = ref<HTMLElement | null>(null)
 let sortable: any = null
 
+const alivePageCount = computed(() => pages.value.filter((p: PageItem) => !p.deleted).length)
+
 const groups = computed(() => {
   const alive = pages.value.filter((p: PageItem) => !p.deleted)
   const out: number[][] = []
@@ -159,6 +168,36 @@ const groups = computed(() => {
   if (cur.length) out.push(cur)
   return out
 })
+
+const groupsSummary = computed(() => `${groups.value.length} 组 / ${alivePageCount.value} 页`)
+
+function toRanges1Based(pages0: number[]): string {
+  if (pages0.length === 0) return ''
+  const pages1 = pages0.map(n => n + 1)
+  const out: string[] = []
+  let start = pages1[0]
+  let prev = pages1[0]
+  for (let i = 1; i < pages1.length; i++) {
+    const cur = pages1[i]
+    if (cur === prev + 1) {
+      prev = cur
+      continue
+    }
+    out.push(start === prev ? `${start}` : `${start}-${prev}`)
+    start = cur
+    prev = cur
+  }
+  out.push(start === prev ? `${start}` : `${start}-${prev}`)
+  return out.join(',')
+}
+
+function formatGroupCompact(g: number[]): string {
+  return toRanges1Based(g)
+}
+
+function formatGroupFull(g: number[]): string {
+  return `页码(1-based): ${toRanges1Based(g)}`
+}
 
 async function loadFile(f: File, inputEl?: HTMLInputElement) {
   const name = (f.name ?? '').toLowerCase()
@@ -192,7 +231,7 @@ async function loadFile(f: File, inputEl?: HTMLInputElement) {
         id: newId(),
         originalIndex: i,
         deleted: false,
-        breakAfter: false,
+        breakAfter: true,
         thumbUrl: '',
         isLast: i === n - 1
       })
@@ -262,9 +301,9 @@ function initSortable() {
   sortable?.destroy()
   sortable = new Sortable(sortableRoot.value, {
     animation: 150,
-    draggable: '[data-id]',
+    draggable: '.rf-thumb-card',
     onEnd: () => {
-      const els = Array.from(sortableRoot.value?.querySelectorAll('[data-id]') ?? []) as HTMLElement[]
+      const els = Array.from(sortableRoot.value?.querySelectorAll('.rf-thumb-card[data-id]') ?? []) as HTMLElement[]
       const ids = els.map(el => el.dataset.id ?? '')
       const map = new Map(pages.value.map((p: PageItem) => [p.id, p] as const))
       const next = ids.map(id => map.get(id)).filter(Boolean) as PageItem[]
@@ -319,7 +358,7 @@ function resetAll() {
   }
   pages.value.forEach((p: PageItem) => {
     p.deleted = false
-    p.breakAfter = false
+    p.breakAfter = true
   })
 }
 

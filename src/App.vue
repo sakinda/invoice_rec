@@ -4,7 +4,6 @@
       <div class="flex items-end justify-between gap-4">
         <div class="flex flex-col gap-1">
           <div class="text-[24px] leading-8 font-semibold tracking-[-0.01em]">发票处理</div>
-          <div class="text-sm text-[color:var(--rf-text-muted)]">自动拆分、识别、导出</div>
         </div>
         <div class="hidden md:flex text-xs text-[color:var(--rf-text-muted)]">
           仅在浏览器内完成处理

@@ -4,14 +4,14 @@
 
     <div class="flex flex-col gap-4">
       <div class="flex items-center justify-between gap-3">
-        <el-button type="primary" :disabled="busy || invoices.length === 0" @click="runExtract">开始抽取</el-button>
+        <el-button type="primary" :disabled="busy || invoices.length === 0" @click="runExtract">开始识别</el-button>
         <div class="text-xs text-[color:var(--rf-text-muted)]">按顺序轮替使用 API Key；失败会记录错误信息</div>
       </div>
 
-      <el-table class="rf-table" :data="invoices" size="small" border stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="220" />
-        <el-table-column label="页码(原始 0-based)">
-          <template #default="{ row }">{{ row.pagesOriginal.join(',') }}</template>
+      <el-table class="rf-table" :data="invoices" size="small" border stripe table-layout="fixed" style="width: 100%">
+        <el-table-column prop="id" label="ID" width="220" class-name="rf-col-id" />
+        <el-table-column label="页" width="56" min-width="56" align="center" class-name="rf-col-pages" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatPages(row.pagesOriginal) }}</template>
         </el-table-column>
         <el-table-column label="公司">
           <template #default="{ row }">{{ row.extract?.company_name ?? '-' }}</template>
@@ -51,6 +51,32 @@ const props = defineProps<{
 const busy = ref(false)
 const hasKeys = computed(() => getApiKeys().length > 0)
 
+function formatPages(pages0: number[]): string {
+  if (!Array.isArray(pages0) || pages0.length === 0) return '-'
+  const pages = pages0
+    .slice()
+    .sort((a, b) => a - b)
+    .map(n => n + 1)
+
+  const out: string[] = []
+  let start = pages[0]
+  let prev = pages[0]
+
+  for (let i = 1; i < pages.length; i++) {
+    const cur = pages[i]
+    if (cur === prev + 1) {
+      prev = cur
+      continue
+    }
+    out.push(start === prev ? `${start}` : `${start}-${prev}`)
+    start = cur
+    prev = cur
+  }
+
+  out.push(start === prev ? `${start}` : `${start}-${prev}`)
+  return out.join(',')
+}
+
 async function runExtract() {
   const keys = getApiKeys()
   if (keys.length === 0) {
@@ -81,3 +107,18 @@ async function runExtract() {
   }
 }
 </script>
+
+<style scoped>
+@media (max-width: 640px) {
+  :deep(.rf-col-id) {
+    display: none;
+  }
+
+  :deep(th.rf-col-pages .cell),
+  :deep(td.rf-col-pages .cell) {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 12px;
+  }
+}
+</style>

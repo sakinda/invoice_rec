@@ -24,8 +24,11 @@ export function applyRenameTemplate(tpl: string, inv: SplitInvoice): string {
     .replaceAll('{invoice_no}', invoiceNo)
     .replaceAll('{currency}', currency)
 
-  const name = raw.endsWith('.pdf') ? raw : `${raw}.pdf`
-  return name
+  const base = (raw.endsWith('.pdf') ? raw : `${raw}.pdf`).replace(/\s+/g, ' ').trim()
+
+  const prefix = 'Facture(Richelieu)'
+  if (base.startsWith(prefix)) return base
+  return `${prefix} ${base}`
 }
 
 export function buildExcelRows(invoices: SplitInvoice[]): Array<(string | number)[]> {
