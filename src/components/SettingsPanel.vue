@@ -93,13 +93,14 @@ import {
 } from '../lib/storage'
 import type { GeminiModelId } from '../lib/types'
 
-type TokenKey = 'date' | 'company' | 'amount' | 'invoice_no' | 'currency'
+type TokenKey = 'date' | 'company' | 'amount' | 'invoice_no' | 'purpose_short' | 'currency'
 
 const tokenMeta: Array<{ key: TokenKey; label: string; tpl: string }> = [
   { key: 'date', label: '日期', tpl: '{date}' },
   { key: 'company', label: '公司', tpl: '{company}' },
-  { key: 'amount', label: '金额', tpl: '{amount}' },
   { key: 'invoice_no', label: '发票号', tpl: '{invoice_no}' },
+  { key: 'purpose_short', label: '用途(精简)', tpl: '{purpose_short}' },
+  { key: 'amount', label: '金额', tpl: '{amount}' },
   { key: 'currency', label: '货币', tpl: '{currency}' }
 ]
 
@@ -115,12 +116,14 @@ function tokenTpl(k: TokenKey): string {
 
 function parseTemplate(tpl: string): { keys: TokenKey[]; sep: '_' | ' ' } {
   const sep: '_' | ' ' = tpl.includes('_') ? '_' : ' '
-  const matches = Array.from(tpl.matchAll(/\{(date|company|amount|invoice_no|currency)\}/g)).map(m => m[1] as TokenKey)
+  const matches = Array.from(tpl.matchAll(/\{(date|company|invoice_no|purpose_short|amount|currency)\}/g)).map(
+    m => m[1] as TokenKey
+  )
   const uniq: TokenKey[] = []
   for (const k of matches) {
     if (!uniq.includes(k)) uniq.push(k)
   }
-  if (uniq.length === 0) return { keys: ['date', 'company', 'amount'], sep }
+  if (uniq.length === 0) return { keys: ['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency'], sep }
   return { keys: uniq, sep }
 }
 
@@ -135,7 +138,7 @@ const renameTpl = ref('')
 const modelId = ref<GeminiModelId>('gemini-2.5-flash-lite')
 
 const separator = ref<'_' | ' '>('_')
-const selectedTokenKeys = ref<TokenKey[]>(['date', 'company', 'amount'])
+const selectedTokenKeys = ref<TokenKey[]>(['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency'])
 
 const selectedTokensRoot = ref<HTMLElement | null>(null)
 let sortable: any = null
@@ -192,8 +195,8 @@ function removeToken(k: TokenKey) {
 }
 
 function resetRenameTpl() {
-  selectedTokenKeys.value = ['date', 'company', 'amount']
-  separator.value = '_'
+  selectedTokenKeys.value = ['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency']
+  separator.value = ' '
 }
 
 function save() {

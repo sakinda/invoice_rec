@@ -5,6 +5,7 @@ export type InvoiceExtract = {
   date: string
   invoice_no: string
   purpose: string
+  purpose_short?: string
   tva: string
   total_amount: string
   currency: string

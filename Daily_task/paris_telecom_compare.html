@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>巴黎四大运营商 · 10€ 档套餐对比</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1b2233; --muted:#6b7385;
+    --line:#e4e8f2; --accent:#2563eb; --gold:#f59e0b;
+    --ok:#16a34a; --no:#dc2626; --warn:#d97706;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6; padding-bottom:60px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px;}
+
+  /* ---------- header ---------- */
+  header{
+    background:linear-gradient(135deg,#101a3c 0%,#1d2f63 55%,#2b4a9e 100%);
+    color:#fff; padding:38px 0 30px; text-align:center;
+  }
+  header h1{font-size:1.9rem; font-weight:800; letter-spacing:.5px;}
+  header .sub{margin-top:10px; color:#c7d2f2; font-size:.95rem;}
+  header .sub b{color:#ffd76a;}
+  .chips{display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:16px;}
+  .chip{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
+        border-radius:999px; padding:4px 14px; font-size:.82rem;}
+
+  /* ---------- verdict ---------- */
+  .verdict{margin:26px 0 4px;}
+  .verdict-banner{
+    background:linear-gradient(135deg,#fff7e0,#fff3c9); border:1px solid #f2d489;
+    border-left:6px solid var(--gold); border-radius:14px; padding:16px 20px;
+    box-shadow:0 4px 14px rgba(245,158,11,.12);
+  }
+  .verdict-banner h2{font-size:1.05rem; color:#8a5a00; margin-bottom:6px;}
+  .verdict-banner p{font-size:.95rem; color:#6b4c00;}
+  .verdict-banner .dyn{font-size:1rem; font-weight:700; color:#7c3f00; margin-top:8px;}
+  .verdict-banner .dyn .winner{color:#b45309; text-decoration:underline; text-decoration-thickness:2px;}
+
+  /* ---------- controls ---------- */
+  .controls{background:var(--card); border:1px solid var(--line); border-radius:16px;
+            padding:20px 22px; margin-top:20px; box-shadow:0 2px 10px rgba(16,26,60,.05);}
+  .controls h2{font-size:1.05rem; margin-bottom:14px;}
+  .controls .hint{color:var(--muted); font-size:.83rem; margin-top:10px;}
+  .slider-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px;}
+  .slider-item label{display:flex; justify-content:space-between; font-size:.88rem; margin-bottom:6px;}
+  .slider-item label b{color:var(--accent);}
+  .slider-item input[type=range]{width:100%; accent-color:var(--accent); cursor:pointer;}
+
+  /* ---------- cards ---------- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(235px,1fr)); gap:16px; margin-top:22px;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+    box-shadow:0 3px 12px rgba(16,26,60,.06); display:flex; flex-direction:column;
+    transition:transform .18s ease, box-shadow .18s ease; position:relative;
+  }
+  .card:hover{transform:translateY(-4px); box-shadow:0 10px 24px rgba(16,26,60,.12);}
+  .card .rank{
+    position:absolute; top:10px; right:12px; font-size:1.5rem; z-index:2;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.25));
+  }
+  .card-head{
+    padding:14px 16px; color:#fff; display:flex; align-items:center; gap:10px;
+  }
+  .card-head .logo{
+    width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.92);
+    display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1rem; color:#222;
+    flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,.2);
+  }
+  .card-head .brand-name{font-weight:800; font-size:1.05rem; line-height:1.2;}
+  .card-head .brand-sub{font-size:.72rem; opacity:.9;}
+  .brand-free{background:linear-gradient(135deg,#e1000f,#b4000b);}
+  .brand-red{background:linear-gradient(135deg,#e4002b,#a5001f);}
+  .brand-byou{background:linear-gradient(135deg,#009fdf,#0068a0);}
+  .brand-sosh{background:linear-gradient(135deg,#ff7900,#d95e00);}
+
+  .card-body{padding:14px 16px; flex:1; display:flex; flex-direction:column; gap:8px;}
+  .price{font-size:1.7rem; font-weight:900;}
+  .price small{font-size:.85rem; color:var(--muted); font-weight:600;}
+  .data-line{font-size:1.05rem; font-weight:800;}
+  .data-line span{font-size:.8rem; font-weight:600; color:var(--muted);}
+  ul.features{list-style:none; font-size:.84rem; color:#3a4256;}
+  ul.features li{padding:2px 0;}
+  .ok{color:var(--ok); font-weight:700;}
+  .no{color:var(--no); font-weight:700;}
+  .warn{color:var(--warn); font-weight:700;}
+  .gb-euro{margin-top:auto; font-size:.8rem; color:var(--muted);}
+  .gb-euro b{color:var(--ink);}
+  .score{margin-top:10px;}
+  .score .score-top{display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px;}
+  .score .score-top b{color:var(--accent);}
+  .score-bar{height:9px; border-radius:99px; background:#e8ecf5; overflow:hidden;}
+  .score-bar i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#60a5fa,#2563eb); transition:width .35s ease;}
+  .card .btn{
+    display:block; text-align:center; margin:12px 16px 16px; padding:9px 0; border-radius:10px;
+    text-decoration:none; font-weight:700; font-size:.9rem; color:#fff; background:var(--accent);
+    transition:filter .15s ease;
+  }
+  .card .btn:hover{filter:brightness(1.1);}
+
+  /* ---------- table ---------- */
+  .table-wrap{background:var(--card); border:1px solid var(--line); border-radius:16px;
+              margin-top:26px; padding:20px 22px; box-shadow:0 2px 10px rgba(16,26,60,.05);}
+  .table-wrap h2{font-size:1.05rem; margin-bottom:12px;}
+  .table-scroll{overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:.88rem; min-width:720px;}
+  th,td{padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{background:#f0f3fa; font-size:.82rem; color:#4a5268; white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  td .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+  .best-cell{background:#fff8e6; font-weight:700;}
+  .hl{background:#eef5ff;}
+
+  /* ---------- bonus ---------- */
+  .bonus{background:var(--card); border:1px dashed #c9d4ea; border-radius:16px;
+         margin-top:26px; padding:20px 22px;}
+  .bonus h2{font-size:1.05rem; margin-bottom:6px;}
+  .bonus > p{font-size:.86rem; color:var(--muted); margin-bottom:12px;}
+  .bonus-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;}
+  .bonus-item{border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.84rem; background:#fafbfe;}
+  .bonus-item b{font-size:.95rem;}
+  .bonus-item .b-sub{color:var(--muted); font-size:.78rem;}
+
+  /* ---------- footer ---------- */
+  footer{margin-top:30px; color:var(--muted); font-size:.78rem;}
+  footer .src{background:#eef2fb; border-radius:12px; padding:14px 16px; margin-top:10px;}
+  footer a{color:var(--accent);}
+  footer .warn-box{margin-top:10px; border:1px solid #f2d489; background:#fffaf0; border-radius:12px; padding:12px 16px;}
+  .net-note{margin-top:10px; font-size:.82rem; color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>📱 巴黎四大运营商 · 10€ 档套餐对比</h1>
+    <p class="sub">数据核对时间:<b>2026-08-16</b> · 四家主推档同为 <b>9,99€/月</b> · 全部无合约</p>
+    <div class="chips">
+      <span class="chip">🟠 Orange → Sosh</span>
+      <span class="chip">🔴 SFR → RED by SFR</span>
+      <span class="chip">🔵 Bouygues → B&amp;YOU</span>
+      <span class="chip">⚪ Free Mobile</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 结论横幅 -->
+  <section class="verdict">
+    <div class="verdict-banner">
+      <h2>🏆 直接给结论(按你「20–60GB / 偶尔打回中国 / ≤10€」的需求)</h2>
+      <p>流量性价比之王:<b>RED by SFR 60 Go</b> —— 同价 9,99€,流量是其他三家的 <b>3 倍</b>(60 Go 正好落在你的流量区间上限)。</p>
+      <p>如果想偶尔免费打回中国:<b>Free(2€ 基础 + 7,99€ Booster)</b> —— 官方合同写明<i>打中国手机号免费</i>,这是四家里唯一的选择。</p>
+      <p>如果非 5G 不可:<b>B&amp;YOU</b> —— 此价位唯一含 5G。</p>
+      <p class="dyn">📊 根据你当前权重,最适合你的是:<span class="winner" id="dynWinner">—</span></p>
+    </div>
+  </section>
+
+  <!-- 权重调节 -->
+  <section class="controls">
+    <h2>🎛️ 按你的真实偏好打分(拖动滑块,卡片「适合度」实时变化)</h2>
+    <div class="slider-row">
+      <div class="slider-item">
+        <label>流量重要程度 <b id="v-data">100</b></label>
+        <input type="range" id="w-data" min="0" max="100" value="100">
+      </div>
+      <div class="slider-item">
+        <label>偶尔打回中国 <b id="v-intl">60</b></label>
+        <input type="range" id="w-intl" min="0" max="100" value="60">
+      </div>
+      <div class="slider-item">
+        <label>5G 需求 <b id="v-g5">30</b></label>
+        <input type="range" id="w-g5" min="0" max="100" value="30">
+      </div>
+      <div class="slider-item">
+        <label>网络覆盖口碑 <b id="v-net">40</b></label>
+        <input type="range" id="w-net" min="0" max="100" value="40">
+      </div>
+    </div>
+    <p class="hint">默认权重已按你的需求预置:流量为主、中国通话次之、5G 与网络覆盖为辅。价格四家完全相同(9,99€),故不参与打分。</p>
+  </section>
+
+  <!-- 四张卡片 -->
+  <section class="cards" id="cards"></section>
+
+  <!-- 详细对比表 -->
+  <section class="table-wrap">
+    <h2>📋 四家 9,99€ 档详细对比</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>运营商 / 品牌</th>
+            <th>月租</th>
+            <th>流量(法国)</th>
+            <th>欧盟/海外漫游</th>
+            <th>5G</th>
+            <th>打回中国</th>
+            <th>通话短信</th>
+            <th>网络口碑</th>
+            <th>性价比(Go/€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="dot" style="background:#e1000f"></span><b>Free</b><br><small>Free 2€ + Booster 7,99€</small></td>
+            <td><b>9,99€</b></td>
+            <td>20 Go 4G</td>
+            <td>有(公平使用)</td>
+            <td class="no">✗</td>
+            <td class="ok">✅ 中国手机号<b>免费</b>;<br>100+ 国固话 2h/月</td>
+            <td>法国无限</td>
+            <td>★★★☆☆</td>
+            <td>2.0 Go/€</td>
+          </tr>
+          <tr class="hl">
+            <td><span class="dot" style="background:#e4002b"></span><b>RED by SFR</b><br><small>SFR 低价品牌</small></td>
+            <td><b>9,99€</b></td>
+            <td class="best-cell">🏆 60 Go 4G</td>
+            <td><b>23 Go</b>(欧盟+DOM)</td>
+            <td class="no">✗</td>
+            <td class="warn">△ 另购国际包</td>
+            <td>法国无限(含短信/MMS)</td>
+            <td>★★★★☆</td>
+            <td class="best-cell">6.0 Go/€ 🏆</td>
+          </tr>
+          <tr>
+            <td><span class="dot" style="background:#009fdf"></span><b>B&amp;YOU</b><br><small>Bouygues 低价品牌</small></td>
+            <td><b>9,99€</b></td>
+            <td>20 Go 4G/5G</td>
+            <td>20 Go(欧盟)</td>
+            <td class="ok">✅ <b>免费含</b></td>
+            <td class="warn">△ 另购国际包</td>
+            <td>法国/欧洲/DOM 无限</td>
+            <td>★★★★☆</td>
+            <td>2.0 Go/€</td>
+          </tr>
+          <tr>
+            <td><span class="dot" style="background:#ff7900"></span><b>Sosh</b><br><small>Orange 低价品牌</small></td>
+            <td><b>9,99€</b></td>
+            <td>20 Go 4G</td>
+            <td>20 Go(欧盟+DOM)</td>
+            <td class="no">✗(5G 需 15,99€)</td>
+            <td class="warn">△ 另购国际包</td>
+            <td>法国无限;含 Orange TV 200 频道</td>
+            <td>★★★★★</td>
+            <td>2.0 Go/€</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="net-note">网络口碑为一般认知(覆盖与速度综合):Orange &gt; Bouygues &gt; SFR &gt; Free;Free 在大城市覆盖良好,山区/郊外稍弱。具体以你常活动区域的实测为准。</p>
+  </section>
+
+  <!-- 补充:MVNO -->
+  <section class="bonus">
+    <h2>💡 补充:同一个价位,更狠的虚拟运营商(MVNO)</h2>
+    <p>它们不直接叫 SFR / Bouygues,但网络就是租用这两家的(信号同源),常用来薅极致流量。四家正牌之外的「隐藏选项」:</p>
+    <div class="bonus-grid">
+      <div class="bonus-item"><b>Lebara</b> 9,99€ · <b>250 Go 5G</b><br><span class="b-sub">SFR 网 · 国际通话便宜,常含中国分钟</span></div>
+      <div class="bonus-item"><b>YouPrice</b> 8,99€ · <b>130 Go 5G</b><br><span class="b-sub">Bouygues 网 · 最便宜 5G</span></div>
+      <div class="bonus-item"><b>SYMA</b> 9,99€ · <b>100 Go</b><br><span class="b-sub">SFR 网</span></div>
+      <div class="bonus-item"><b>NRJ Mobile</b> 9,99€ · <b>100 Go 5G</b><br><span class="b-sub">Bouygues 网</span></div>
+      <div class="bonus-item"><b>Auchan Télécom</b> 9,99€ · <b>100 Go 5G</b><br><span class="b-sub">Bouygues 网</span></div>
+      <div class="bonus-item"><b>Cdiscount Mobile</b> 9,99€ · <b>100 Go 5G</b><br><span class="b-sub">Bouygues 网</span></div>
+      <div class="bonus-item"><b>Prixtel</b> 6,99€ 起 · <b>10–40 Go 弹性</b><br><span class="b-sub">SFR 网 · 用多少付多少,适合保号</span></div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer>
+    <div class="src">
+      <b>数据来源(2026-07 至 2026-08 最新公开信息):</b><br>
+      · DegroupTest 横评《9,99 € chez RED, Free, Sosh et B&amp;You》(2026-08-14) —
+      <a href="https://www.degrouptest.com/actualite/9-99-chez-red-free-sosh-et-b-you-un-operateur-offre-trois-fois-plus-de-gigas-que-les-autres" target="_blank">链接</a><br>
+      · ECENTIME《法国 10€ 以内手机套餐合集:8 家低价大流量横评》(2026-07-31) —
+      <a href="https://www.ecentime.com/article/france-forfaits-under-10-euros-roundup" target="_blank">链接</a><br>
+      · Free Mobile 官方合同摘要(含"打中国手机号免费"条款) —
+      <a href="https://mobile.free.fr/docs/Recapitulatif_contractuel.pdf" target="_blank">PDF</a><br>
+      · 各家官网:Sosh / RED by SFR / B&amp;YOU / Free
+    </div>
+    <div class="warn-box">
+      ⚠️ <b>免责声明:</b>电信套餐促销频繁变动(常有首月特价、限时优惠、涨价条款),表中为当前公开信息整理,不构成购买建议。办理前请以各运营商官网最新条款为准,并留意「促销价」与「长期价」的差别。
+    </div>
+  </footer>
+</div>
+
+<script>
+// ---------- 数据 ----------
+const plans = [
+  {
+    id:'free', cls:'brand-free', logo:'Free', name:'Free', sub:'Free 2€ + Booster 7,99€',
+    price:'9,99€', go:20, g5:false, intlChina:100, network:75, dataEU:'有(公平使用)',
+    gbeuro:'2.0 Go/€',
+    features:[
+      ['ok','✅ 打中国手机号免费(不限时)'],
+      ['ok','✅ 100+ 国固话 2h/月'],
+      ['warn','⚠️ 此价位为 4G(无 5G)'],
+      ['no','✗ 流量只有 20 Go']
+    ],
+    url:'https://mobile.free.fr/'
+  },
+  {
+    id:'red', cls:'brand-red', logo:'RED', name:'RED by SFR', sub:'SFR 低价品牌 · 无合约',
+    price:'9,99€', go:60, g5:false, intlChina:20, network:82, dataEU:'23 Go(欧盟+DOM)',
+    gbeuro:'6.0 Go/€',
+    features:[
+      ['ok','✅ 60 Go —— 同价流量的 3 倍'],
+      ['ok','✅ 欧盟漫游 23 Go,很慷慨'],
+      ['warn','⚠️ 此价位为 4G(无 5G)'],
+      ['no','✗ 打中国需另购国际包']
+    ],
+    url:'https://www.red-by-sfr.fr/'
+  },
+  {
+    id:'byou', cls:'brand-byou', logo:'B&Y', name:'B&YOU', sub:'Bouygues 低价品牌 · 无合约',
+    price:'9,99€', go:20, g5:true, intlChina:20, network:88, dataEU:'20 Go(欧盟)',
+    gbeuro:'2.0 Go/€',
+    features:[
+      ['ok','✅ 此价位唯一含 5G,免费'],
+      ['ok','✅ 法国/欧洲/DOM 通话无限'],
+      ['warn','⚠️ 流量只有 20 Go'],
+      ['no','✗ 打中国需另购国际包']
+    ],
+    url:'https://www.bouyguestelecom.fr/b-and-you'
+  },
+  {
+    id:'sosh', cls:'brand-sosh', logo:'Sosh', name:'Sosh', sub:'Orange 低价品牌 · 无合约',
+    price:'9,99€', go:20, g5:false, intlChina:20, network:100, dataEU:'20 Go(欧盟+DOM)',
+    gbeuro:'2.0 Go/€',
+    features:[
+      ['ok','✅ Orange 全网,覆盖口碑最好'],
+      ['ok','✅ 欧洲/DOM 数据可漫游 + Orange TV'],
+      ['warn','⚠️ 此价位为 4G(5G 需 15,99€)'],
+      ['no','✗ 打中国需另购国际包']
+    ],
+    url:'https://www.sosh.fr/'
+  }
+];
+
+const medals = ['🥇','🥈','🥉','4️⃣'];
+const TARGET_GO = 60; // 用户流量区间上限,用于归一化
+
+function compute(p, w){
+  const dataScore = Math.min(p.go / TARGET_GO, 1) * 100;
+  const g5Score   = p.g5 ? 100 : 40;
+  const intlScore = p.intlChina;      // 打回中国便利度
+  const netScore  = p.network;        // 网络口碑
+  const totalW = w.data + w.g5 + w.intl + w.network;
+  const s = (dataScore*w.data + g5Score*w.g5 + intlScore*w.intl + netScore*w.network) / totalW;
+  return { s, dataScore, g5Score, intlScore, netScore };
+}
+
+function getWeights(){
+  const $ = id => document.getElementById(id).value;
+  return { data: +$('w-data'), intl: +$('w-intl'), g5: +$('w-g5'), network: +$('w-net') };
+}
+
+function render(){
+  const w = getWeights();
+  const scored = plans.map(p => ({ p, ...compute(p, w) }))
+                      .sort((a,b) => b.s - a.s);
+
+  const cardsEl = document.getElementById('cards');
+  cardsEl.innerHTML = scored.map((item, idx) => {
+    const p = item.p;
+    const pct = Math.round(item.s);
+    return `
+    <div class="card">
+      <div class="rank">${medals[idx]}</div>
+      <div class="card-head ${p.cls}">
+        <div class="logo">${p.logo}</div>
+        <div>
+          <div class="brand-name">${p.name}</div>
+          <div class="brand-sub">${p.sub}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="price">${p.price}<small>/月</small></div>
+        <div class="data-line">${p.go} Go <span>${p.g5 ? '含 5G ✅' : '4G'}</span></div>
+        <ul class="features">
+          ${p.features.map(f => `<li><span class="${f[0]}">${f[1]}</span></li>`).join('')}
+        </ul>
+        <div class="gb-euro">性价比:<b>${p.gbeuro}</b> · 欧盟漫游:${p.dataEU}</div>
+        <div class="score">
+          <div class="score-top"><span>适合度</span><b>${pct}%</b></div>
+          <div class="score-bar"><i style="width:${pct}%"></i></div>
+        </div>
+      </div>
+      <a class="btn" href="${p.url}" target="_blank" rel="noopener">查看官网 →</a>
+    </div>`;
+  }).join('');
+
+  document.getElementById('dynWinner').textContent =
+    `${scored[0].p.name}(${Math.round(scored[0].s)}%)`;
+}
+
+// 事件绑定
+['w-data','w-intl','w-g5','w-net'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    document.getElementById('v-' + id.slice(2)).textContent = el.value;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

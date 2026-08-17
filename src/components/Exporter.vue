@@ -29,7 +29,7 @@ const props = defineProps<{
 
 const previewRows = computed(() => {
   const tpl = getRenameTemplate()
-  const rows = buildExcelRows(props.invoices)
+  const rows = buildExcelRows(props.invoices, tpl)
   return props.invoices.map((inv: SplitInvoice, idx: number) => ({
     name: applyRenameTemplate(tpl, inv),
     col8: rows[idx]?.[7] ?? ''
