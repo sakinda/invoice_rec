@@ -1,6 +1,7 @@
 <template>
-  <el-card class="rf-card">
-    <template #header>设置</template>
+  <div class="flex flex-col gap-6">
+    <el-card class="rf-card">
+      <template #header>基础设置</template>
 
     <el-form label-position="top" class="rf-form">
       <div class="grid grid-cols-1 gap-4">
@@ -81,12 +82,16 @@
       </div>
     </el-form>
   </el-card>
+
+  <ExperienceManager />
+</div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
 import Sortable from 'sortablejs'
 import { ElMessage } from 'element-plus'
+import ExperienceManager from './ExperienceManager.vue'
 import {
   defaultPrompt,
   getApiKeys,

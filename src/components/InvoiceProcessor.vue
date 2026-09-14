@@ -98,29 +98,64 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="300">
+        <el-table-column label="状态" width="310">
           <template #default="{ $index, row }">
             <div class="flex items-center justify-between gap-2 w-full">
               <span class="flex-1 min-w-0 truncate" :title="row.error">
                 <span v-if="row.error" class="text-red-600">{{ row.error }}</span>
-                <span v-else-if="row.extract" class="text-green-700">完成</span>
+                <span v-else-if="row.extract" class="text-green-700 flex items-center gap-1.5 flex-wrap">
+                  <span>完成</span>
+                  <span v-if="isRowModified(row)" class="text-amber-600 text-[11px] font-medium bg-amber-50 px-1 rounded border border-amber-200">
+                    已修改
+                  </span>
+                </span>
                 <span v-else class="text-gray-600">待处理</span>
               </span>
-              <el-button
-                v-if="row.error || !row.extract"
-                size="small"
-                type="primary"
-                plain
-                :disabled="busy"
-                @click="retryOne($index as number)"
-              >
-                {{ row.extract ? '重新识别' : '重试' }}
-              </el-button>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <el-button
+                  v-if="row.extract && isRowModified(row)"
+                  size="small"
+                  type="warning"
+                  plain
+                  @click="openExperienceDialog(row)"
+                >
+                  沉淀经验
+                </el-button>
+                <el-button
+                  v-else-if="row.extract"
+                  size="small"
+                  link
+                  type="info"
+                  title="将当前提取内容沉淀为公司偏好经验"
+                  @click="openExperienceDialog(row)"
+                >
+                  沉淀经验
+                </el-button>
+
+                <el-button
+                  v-if="row.error || !row.extract"
+                  size="small"
+                  type="primary"
+                  plain
+                  :disabled="busy"
+                  @click="retryOne($index as number)"
+                >
+                  {{ row.extract ? '重新识别' : '重试' }}
+                </el-button>
+              </div>
             </div>
           </template>
         </el-table-column>
       </el-table>
     </div>
+
+    <!-- 经验沉淀弹窗 -->
+    <ExperienceDialog
+      v-model:visible="expDialogVisible"
+      :invoice="selectedInvoiceForExp"
+      @saved="onExperienceSaved"
+    />
   </el-card>
 </template>
 
@@ -129,7 +164,8 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { SplitInvoice } from '../lib/types'
 import { extractInvoiceByGemini, GeminiApiError } from '../lib/gemini'
-import { getApiKeys, getModelId, getPrompt } from '../lib/storage'
+import { getApiKeys, getEffectivePrompt, getModelId } from '../lib/storage'
+import ExperienceDialog from './ExperienceDialog.vue'
 
 const props = defineProps<{
   invoices: SplitInvoice[]
@@ -176,6 +212,30 @@ async function waitUntilAnyKeyAvailable(keys: string[], state: Map<string, KeySt
   if (times.length === 0) return
   const waitMs = Math.max(0, Math.min(...times) - nowMs())
   if (waitMs > 0) await sleep(waitMs)
+}
+
+const expDialogVisible = ref(false)
+const selectedInvoiceForExp = ref<SplitInvoice | null>(null)
+
+function isRowModified(row: SplitInvoice): boolean {
+  if (!row.extract || !row.rawExtract) return false
+  const pNow = String(row.extract.purpose ?? '').trim()
+  const pOrig = String(row.rawExtract.purpose ?? '').trim()
+  const sNow = String((row.extract as any).purpose_short ?? '').trim()
+  const sOrig = String((row.rawExtract as any).purpose_short ?? '').trim()
+  return (pNow !== pOrig || sNow !== sOrig) && (pNow.length > 0 || sNow.length > 0)
+}
+
+function openExperienceDialog(row: SplitInvoice) {
+  selectedInvoiceForExp.value = row
+  expDialogVisible.value = true
+}
+
+function onExperienceSaved() {
+  // 规则保存后，更新当前行原始快照为当前修改值，避免重复提示已修改
+  if (selectedInvoiceForExp.value?.extract) {
+    selectedInvoiceForExp.value.rawExtract = { ...selectedInvoiceForExp.value.extract }
+  }
 }
 
 function formatPages(pages0: number[]): string {
@@ -242,6 +302,7 @@ async function extractOneInvoice(
     try {
       const ex = await extractInvoiceByGemini({ apiKey, modelId, prompt, pdfBlob: inv.pdfBlob })
       inv.extract = ex
+      inv.rawExtract = { ...ex }
       lastErr = undefined
       break
     } catch (e) {
@@ -280,7 +341,7 @@ async function retryOne(index: number) {
   }
   if (!props.invoices[index]) return
   const modelId = getModelId()
-  const prompt = getPrompt()
+  const prompt = getEffectivePrompt()
   busy.value = true
   try {
     await extractOneInvoice(index, keys, modelId, prompt)
@@ -304,7 +365,7 @@ async function runExtract() {
   busy.value = true
   try {
     const modelId = getModelId()
-    const prompt = getPrompt()
+    const prompt = getEffectivePrompt()
     keyState.value = new Map<string, KeyState>()
 
     for (let i = 0; i < props.invoices.length; i++) {

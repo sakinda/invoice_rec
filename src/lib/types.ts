@@ -17,5 +17,24 @@ export type SplitInvoice = {
   pdfBlob: Blob
   filenameSuggested?: string
   extract?: InvoiceExtract
+  rawExtract?: InvoiceExtract
   error?: string
+}
+
+export type CompanyRuleExample = {
+  originalPurpose?: string
+  userPurpose?: string
+  originalShort?: string
+  userShort?: string
+}
+
+export type CompanyPreferenceRule = {
+  id: string
+  company: string
+  aliases?: string[]
+  rule: string
+  purpose_short_rule?: string
+  examples?: CompanyRuleExample[]
+  enabled: boolean
+  updatedAt: number
 }

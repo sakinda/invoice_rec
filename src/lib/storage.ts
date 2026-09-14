@@ -1,10 +1,12 @@
-import type { GeminiModelId } from './types'
+import type { CompanyPreferenceRule, GeminiModelId } from './types'
 
 const K = {
   apiKeys: 'invoice_rec_ai.api_keys',
   prompt: 'invoice_rec_ai.prompt',
   renameTpl: 'invoice_rec_ai.rename_tpl',
-  modelId: 'invoice_rec_ai.model_id'
+  modelId: 'invoice_rec_ai.model_id',
+  experienceEnabled: 'invoice_rec_ai.experience_enabled',
+  companyRules: 'invoice_rec_ai.company_rules'
 } as const
 
 export const defaultPrompt = `你是一个专业的跨国财务审计与数据提取专家。
@@ -138,4 +140,144 @@ export function getModelId(): GeminiModelId {
 
 export function setModelId(v: GeminiModelId) {
   localStorage.setItem(K.modelId, v)
+}
+
+export function getExperienceEnabled(): boolean {
+  const v = localStorage.getItem(K.experienceEnabled)
+  if (v === null) return true // 默认开启
+  return v === 'true'
+}
+
+export function setExperienceEnabled(v: boolean) {
+  localStorage.setItem(K.experienceEnabled, String(v))
+}
+
+export function getCompanyRules(): CompanyPreferenceRule[] {
+  try {
+    const raw = localStorage.getItem(K.companyRules)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    console.error('Failed to parse company rules from localStorage', e)
+    return []
+  }
+}
+
+export function saveCompanyRules(rules: CompanyPreferenceRule[]) {
+  localStorage.setItem(K.companyRules, JSON.stringify(rules))
+}
+
+export function upsertCompanyRule(
+  rule: Omit<CompanyPreferenceRule, 'id' | 'updatedAt'> & { id?: string }
+): CompanyPreferenceRule {
+  const current = getCompanyRules()
+  const now = Date.now()
+  const id = rule.id || `rule_${now}_${Math.random().toString(36).slice(2, 7)}`
+
+  const existingIdx = current.findIndex(r => r.id === id || r.company.trim().toLowerCase() === rule.company.trim().toLowerCase())
+  const newRule: CompanyPreferenceRule = {
+    id: existingIdx >= 0 ? current[existingIdx].id : id,
+    company: rule.company.trim(),
+    aliases: rule.aliases?.map(a => a.trim()).filter(Boolean) ?? [],
+    rule: rule.rule.trim(),
+    purpose_short_rule: rule.purpose_short_rule?.trim() || undefined,
+    examples: rule.examples ?? (existingIdx >= 0 ? current[existingIdx].examples : []),
+    enabled: rule.enabled ?? true,
+    updatedAt: now
+  }
+
+  if (existingIdx >= 0) {
+    current[existingIdx] = newRule
+  } else {
+    current.unshift(newRule)
+  }
+
+  saveCompanyRules(current)
+  return newRule
+}
+
+export function deleteCompanyRule(id: string) {
+  const current = getCompanyRules()
+  const filtered = current.filter(r => r.id !== id)
+  saveCompanyRules(filtered)
+}
+
+export function exportRulesJson(): string {
+  const rules = getCompanyRules()
+  return JSON.stringify({
+    version: 1,
+    exportDate: new Date().toISOString(),
+    rules
+  }, null, 2)
+}
+
+export function importRulesJson(jsonStr: string): { success: boolean; count: number; error?: string } {
+  try {
+    const data = JSON.parse(jsonStr)
+    const list = Array.isArray(data) ? data : data?.rules
+    if (!Array.isArray(list)) {
+      return { success: false, count: 0, error: '导入的 JSON 必须包含规则数组' }
+    }
+
+    const current = getCompanyRules()
+    let count = 0
+    for (const item of list) {
+      if (!item || typeof item.company !== 'string' || !item.rule) continue
+      const existingIdx = current.findIndex(
+        r => r.id === item.id || r.company.trim().toLowerCase() === item.company.trim().toLowerCase()
+      )
+      const formatted: CompanyPreferenceRule = {
+        id: item.id || `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        company: String(item.company).trim(),
+        aliases: Array.isArray(item.aliases) ? item.aliases.map(String) : [],
+        rule: String(item.rule).trim(),
+        purpose_short_rule: item.purpose_short_rule ? String(item.purpose_short_rule).trim() : undefined,
+        examples: Array.isArray(item.examples) ? item.examples : [],
+        enabled: typeof item.enabled === 'boolean' ? item.enabled : true,
+        updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now()
+      }
+
+      if (existingIdx >= 0) {
+        current[existingIdx] = formatted
+      } else {
+        current.push(formatted)
+      }
+      count++
+    }
+
+    saveCompanyRules(current)
+    return { success: true, count }
+  } catch (e: any) {
+    return { success: false, count: 0, error: e?.message || 'JSON 解析失败' }
+  }
+}
+
+export function buildExperiencePromptSection(): string {
+  if (!getExperienceEnabled()) return ''
+  const rules = getCompanyRules().filter(r => r.enabled)
+  if (rules.length === 0) return ''
+
+  const lines: string[] = [
+    '【用户偏好与公司特定规则经验库（最高优先级）】',
+    '以下是用户针对特定公司开具的发票所沉淀的个性化提取偏好规则。',
+    '当识别的发票开具方（company_name）匹配下列任意公司名称或其别名时，必须无条件优先遵循其对应规则，生成匹配用户偏好的 purpose 与 purpose_short：'
+  ]
+
+  for (const r of rules) {
+    const aliasStr = r.aliases && r.aliases.length > 0 ? `（包含别名: ${r.aliases.join(' / ')}）` : ''
+    lines.push(`- 公司: ${r.company} ${aliasStr}`)
+    lines.push(`  * 用途要求: ${r.rule}`)
+    if (r.purpose_short_rule) {
+      lines.push(`  * 精简用途要求: ${r.purpose_short_rule}`)
+    }
+  }
+
+  return '\n\n' + lines.join('\n')
+}
+
+export function getEffectivePrompt(): string {
+  const base = getPrompt()
+  const section = buildExperiencePromptSection()
+  return base + section
 }
