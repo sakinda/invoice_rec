@@ -66,7 +66,13 @@
         </div>
 
         <el-form-item label="Prompt 模板">
-          <el-input v-model="prompt" type="textarea" :rows="12" />
+          <div class="flex flex-col gap-2 w-full">
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-xs text-[color:var(--rf-text-muted)]">可自由编辑；重置会恢复到包含兜底禁令的最新默认版本</div>
+              <el-button size="small" @click="resetPrompt">重置 Prompt</el-button>
+            </div>
+            <el-input v-model="prompt" type="textarea" :rows="12" />
+          </div>
         </el-form-item>
 
         <div class="border-t pt-4 mt-2 flex flex-col items-center gap-3">
@@ -82,6 +88,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, watchEffect } from 'vu
 import Sortable from 'sortablejs'
 import { ElMessage } from 'element-plus'
 import {
+  defaultPrompt,
   getApiKeys,
   getModelId,
   getPrompt,
@@ -197,6 +204,10 @@ function removeToken(k: TokenKey) {
 function resetRenameTpl() {
   selectedTokenKeys.value = ['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency']
   separator.value = ' '
+}
+
+function resetPrompt() {
+  prompt.value = defaultPrompt
 }
 
 function save() {

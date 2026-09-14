@@ -1,0 +1,36 @@
+[    1918ms] [LOG] TypeError: Cannot read properties of undefined (reading 'length')
+    at s.get (http://15.188.51.33/static/js/app.724e1b25.js:1:131011)
+    at ni.get (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:30684)
+    at ni.evaluate (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:31685)
+    at s.computedPickupTime (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:33378)
+    at s.me (http://15.188.51.33/static/js/app.724e1b25.js:1:124624)
+    at t._render (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:23733)
+    at s.i (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:27824)
+    at ni.get (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:30684)
+    at new ni (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:30602)
+    at Ln (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:27838) @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1928ms] [LOG] ticketData {} @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1928ms] [LOG] ticketDetail undefined @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1939ms] [LOG]  @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1939ms] [LOG] {} @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1939ms] [LOG] {__ob__: Et} @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1940ms] [LOG] cancelController不存在 @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1976ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8000/CLodopfuncs.js?priority=1:0
+[    1976ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:18000/CLodopfuncs.js:0
+[    1999ms] [LOG] 请求已取消~~~~~~~~ @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    1999ms] [LOG] 没有新的ticket，不需要打印 @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    2002ms] [LOG] TypeError: Cannot read properties of undefined (reading 'length')
+    at s.get (http://15.188.51.33/static/js/app.724e1b25.js:1:131011)
+    at ni.get (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:30684)
+    at ni.evaluate (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:31685)
+    at s.computedPickupTime (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:33378)
+    at s.me (http://15.188.51.33/static/js/app.724e1b25.js:1:124624)
+    at t._render (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:23733)
+    at s.i (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:27824)
+    at ni.get (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:30684)
+    at ni.run (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:31417)
+    at Kn (http://15.188.51.33/static/js/chunk-vendors.20ec35f7.js:7:29624) @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    2003ms] [LOG] ticketData {__ob__: Et} @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    2003ms] [LOG] ticketDetail undefined @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    2041ms] [LOG] [Object, Object, Object, Object] @ http://15.188.51.33/static/js/app.724e1b25.js:0
+[    2053ms] [LOG] 创建了新的Bs @ http://15.188.51.33/static/js/app.724e1b25.js:0

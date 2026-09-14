@@ -1,0 +1,82 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - paragraph [ref=e6]: 全部
+      - paragraph [ref=e8]: 堂食
+      - paragraph [ref=e10]: 打包
+      - paragraph [ref=e12]: 外送
+    - generic [ref=e13]:
+      - generic [ref=e14]: 
+      - textbox "搜索内容" [ref=e16]
+      - generic [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: 󰄲
+          - checkbox "Auto" [checked] [ref=e23]
+        - generic [ref=e25]: Auto
+      - generic [ref=e27]:
+        - text: 过滤
+        - generic [ref=e28]: 
+    - text: 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲 󰄲
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - paragraph [ref=e32]: 10%
+          - paragraph [ref=e33]: "0.00"
+        - generic [ref=e34]:
+          - paragraph [ref=e35]: 20%
+          - text: "0.00"
+        - generic [ref=e36]:
+          - paragraph [ref=e37]: 总TVA
+          - text: "0.00"
+        - heading "总：0.00" [level=2] [ref=e38]
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - paragraph [ref=e41]: 转账
+          - paragraph [ref=e42]: "0.00"
+        - generic [ref=e43]:
+          - paragraph [ref=e44]: 现金
+          - paragraph [ref=e45]: "0.00"
+        - generic [ref=e46]:
+          - paragraph [ref=e47]: 饭票
+          - paragraph [ref=e48]: "0.00"
+          - paragraph [ref=e49]: (0张)
+        - generic [ref=e50]:
+          - paragraph [ref=e51]: 刷卡
+          - paragraph [ref=e52]: "0.00"
+        - generic [ref=e53]:
+          - paragraph [ref=e54]: 支票
+          - paragraph [ref=e55]: "0.00"
+        - generic [ref=e56]:
+          - paragraph [ref=e57]: 微信
+          - paragraph [ref=e58]: "0.00"
+        - generic [ref=e59]:
+          - paragraph [ref=e60]: 阿里
+          - paragraph [ref=e61]: "0.00"
+    - generic [ref=e62]:
+      - generic [ref=e63]:
+        - generic [ref=e67] [cursor=pointer]:
+          - generic [ref=e68]: 󰄲
+          - checkbox [checked] [ref=e69]
+        - generic [ref=e72]:
+          - generic [ref=e73]: 全选
+          - button "结账" [ref=e74] [cursor=pointer]
+          - button "厨房" [ref=e76] [cursor=pointer]
+          - button "前厅" [ref=e78] [cursor=pointer]
+          - button "优先" [ref=e80] [cursor=pointer]
+          - button "骑手" [ref=e82] [cursor=pointer]
+          - button "打印" [ref=e84] [cursor=pointer]
+      - generic [ref=e86]:
+        - list
+    - button "" [ref=e87] [cursor=pointer]
+    - button [ref=e91] [cursor=pointer]:
+      - generic [ref=e92]: 󰐕
+    - text:              󱇕 󰆭 󰭼 󰓡    󰑐   
+  - generic [ref=e94]:
+    - link "订位" [ref=e95] [cursor=pointer]:
+      - /url: /reservation
+    - link "大厅" [ref=e96] [cursor=pointer]:
+      - /url: /salle
+    - link "外卖" [ref=e97] [cursor=pointer]:
+      - /url: /delivery
+    - link "后台" [ref=e98] [cursor=pointer]:
+      - /url: /management
