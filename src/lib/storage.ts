@@ -1,4 +1,4 @@
-import type { CompanyPreferenceRule, GeminiModelId } from './types'
+import type { CompanyPreferenceRule, GeminiModelId, ReconciledRuleItem } from './types'
 
 const K = {
   apiKeys: 'invoice_rec_ai.api_keys',
@@ -13,14 +13,15 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
 请仔细分析我提供的发票文件（图片或PDF），并严格按照以下规则提取信息。
 
 【提取字段与处理规则】
-1. company_name (公司名称): 提取开具发票的销售方主体名称。必须去除多余的空格和换行符。
+1. company_name (公司名称): 提取开具发票的销售方主体名称（最推荐方案）。必须去除多余的空格和换行符。
+   - company_name_candidates (备选公司名列表): 字符串数组，提供最多 5 种不同视角的备选公司名称（如：1. 最推荐规范名；2. 营业执照/法律实体全称；3. 常用简称/品牌名；4. 母公司或集团名；5. 原文外文别名）。第1项必须与 company_name 一致。
 2. date (发票日期): 统一格式化为 "YYYY-MM-DD"。如果原日期是其他格式（如 DD/MM/YYYY 或拼写出的月份），请务必转换。
 3. invoice_no (发票号): 完整保留原文的发票号码，包括任何字母前缀和连字符（如 FR-2024-001），不可擅自改写或缩减。
-4. purpose (发票用途): 提取购买的商品主体名称和数量。
+4. purpose (发票用途): 提取购买的商品主体名称和数量（最推荐方案）。
    - 如果原文是法语或其他外语，请准确翻译成尽量精简的中文。
-   - 格式必须严格统一为：“商品名称 x数量”（例如：“木质A4夹板夹 x6”）。
-   - 如果一张发票包含多个不同的商品，请用逗号将它们连接起来。
-5. purpose_short (用途精简，用于文件命名): 将用途提炼为便于检索的短语（中文为主），不要超过 14 个汉字（或 24 个字符）。
+   - 格式统一为：“商品名称 x数量”（例如：“木质A4夹板夹 x6”）。如果一张发票包含多个不同的商品，请用逗号将它们连接起来。
+   - purpose_candidates (备选用途列表): 字符串数组，提供最多 5 种不同侧重点的备选用途方案（如：1. 匹配用户个性化规则的最优方案；2. 详尽商品明细与数量；3. 双语对照；4. 概括性业务大类；5. 原文摘录等）。最多5条，第1项必须与 purpose 一致。
+5. purpose_short (用途精简，用于文件命名): 将用途提炼为便于检索的短语（中文为主），不要超过 14 个汉字（或 24 个字符）（最推荐方案）。
    - 【强制禁令】禁止任何形式的“YYYY-MM 上半月”或“YYYY-MM 下半月”类表述作为兜底（即使后面不跟“食品采购”等后缀也禁止）。
      - 【唯一例外】仅当 company_name 同时满足以下两个条件时，才允许使用“YYYY-MM 上半月 食品采购”或“YYYY-MM 下半月 食品采购”：
        1) company_name 为 “EUROPE CHINA”（大小写不敏感）。
@@ -28,6 +29,7 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
      - 除上述例外以外，绝对禁止出现“YYYY-MM 上半月 / YYYY-MM 下半月 / 半月”这类时间区间推测；无法确定时要么留白，要么输出更稳妥的大致类别，例如“食材采购”、“食品采购”、“电器设备采购”、“电子产品采购”、“办公用品采购”、“日用百货”、“家居用品采购”、“清洁用品采购”、“服装采购”、“药妆采购”、“水费”、“电费”、“燃气费”、“通讯费”、“网络费”、“交通费”、“加油费”、“停车费”、“酒店住宿”、“餐饮消费”、“服务费”、“维修费”、“医疗保健”、“教育培训”、“订阅费”、“软件服务”等。
    - 电商平台购买多个类目：归纳为大类（如“电子产品”、“厨具”、“办公用品”、“家居用品”、“清洁用品”等）。
    - 若存在单件大额商品（非食品）且单件金额 > 100 EUR：优先用具体商品名（如“微波炉”、“显示器”、“吸尘器”）。若无法确定单件金额，则退回使用大类。
+   - purpose_short_candidates (备选精简用途列表): 字符串数组，提供最多 5 种不同风格的精简备选（如：1. 最推荐精简用途；2. 核心大类标签；3. 关键单品名称；4. 双语简短标签；5. 紧凑分类标签等）。所有备选均不得超过 14 个汉字（或 24 字符），且第1项必须与 purpose_short 一致。
 6. tva (TVA增值税): 仅提取增值税金额。只保留纯数字和对应的小数点，绝对不要带税率百分比，也不要带货币符号（例如正确格式为 "6.30"）。如果没有列出税额，请返回 "0.00"。
 7. total_amount (总金额): 仅提取发票的总金额（含税金额）。只保留纯数字和对应的小数点，绝对不要带货币符号（例如正确格式为 "37.78"）。
 8. currency (货币单位): 识别发票使用的货币，并返回标准的三个字母代码（如 "EUR", "USD", "CNY" 等）。
@@ -40,10 +42,13 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
 必须严格遵守以下 JSON 结构返回：
 {
   "company_name": "",
+  "company_name_candidates": ["", ""],
   "date": "",
   "invoice_no": "",
   "purpose": "",
+  "purpose_candidates": ["", ""],
   "purpose_short": "",
+  "purpose_short_candidates": ["", ""],
   "tva": "",
   "total_amount": "",
   "currency": ""
@@ -113,9 +118,39 @@ function ensureRenameTemplateHasPurposeShort(tpl: string): string {
   return `${withoutExt}${sep}{purpose_short}.pdf`
 }
 
+function ensurePromptHasCandidates(p: string): string {
+  if (p.includes('company_name_candidates') && p.includes('purpose_candidates') && p.includes('purpose_short_candidates')) {
+    return p
+  }
+
+  const patch =
+    '\n\n【多候选备选方案要求 (candidates)】\n' +
+    '为了提供更丰富的选择，请针对“公司名 (company_name)”、“用途 (purpose)”和“用途精简 (purpose_short)”分别提供最多 5 种不同视角的备选方案数组，并确保最推荐的方案置于数组首位（index 0），且与主字段完全一致：\n' +
+    '1. "company_name_candidates": 最多5个备选公司名（如：规范名称、全称/法律实体、简称/常用名、母公司/外文别名等）。\n' +
+    '2. "purpose_candidates": 最多5个备选用途（如：个性化规则推荐、具体品名x数量、双语对照、概括大类、原文摘录等）。\n' +
+    '3. "purpose_short_candidates": 最多5个备选精简用途（如：最推荐短语、核心类别、重点单品、双语短语等，均<=14汉字或24字符）。\n' +
+    '\n请确保返回的 JSON 结构包含以下字段：\n' +
+    '{\n' +
+    '  "company_name": "",\n' +
+    '  "company_name_candidates": [],\n' +
+    '  "date": "",\n' +
+    '  "invoice_no": "",\n' +
+    '  "purpose": "",\n' +
+    '  "purpose_candidates": [],\n' +
+    '  "purpose_short": "",\n' +
+    '  "purpose_short_candidates": [],\n' +
+    '  "tva": "",\n' +
+    '  "total_amount": "",\n' +
+    '  "currency": ""\n' +
+    '}\n'
+
+  return p.trimEnd() + patch
+}
+
 export function getPrompt(): string {
   const saved = localStorage.getItem(K.prompt)
-  return ensurePromptHasPurposeShort(saved ?? defaultPrompt)
+  const p = ensurePromptHasPurposeShort(saved ?? defaultPrompt)
+  return ensurePromptHasCandidates(p)
 }
 
 export function setPrompt(v: string) {
@@ -250,6 +285,122 @@ export function importRulesJson(jsonStr: string): { success: boolean; count: num
     return { success: true, count }
   } catch (e: any) {
     return { success: false, count: 0, error: e?.message || 'JSON 解析失败' }
+  }
+}
+
+export function parseImportRules(jsonStr: string): { success: boolean; rules: CompanyPreferenceRule[]; error?: string } {
+  try {
+    const data = JSON.parse(jsonStr)
+    const list = Array.isArray(data) ? data : data?.rules
+    if (!Array.isArray(list)) {
+      return { success: false, rules: [], error: '导入的 JSON 文件缺少有效的规则数组' }
+    }
+
+    const rules: CompanyPreferenceRule[] = []
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i]
+      if (!item || typeof item.company !== 'string' || !item.rule) continue
+      rules.push({
+        id: item.id || `imp_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+        company: String(item.company).trim(),
+        aliases: Array.isArray(item.aliases) ? item.aliases.map(String).filter(Boolean) : [],
+        rule: String(item.rule).trim(),
+        purpose_short_rule: item.purpose_short_rule ? String(item.purpose_short_rule).trim() : undefined,
+        examples: Array.isArray(item.examples) ? item.examples : [],
+        enabled: typeof item.enabled === 'boolean' ? item.enabled : true,
+        updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now()
+      })
+    }
+
+    if (rules.length === 0) {
+      return { success: false, rules: [], error: 'JSON 文件中未找到有效的公司偏好规则条目' }
+    }
+
+    return { success: true, rules }
+  } catch (e: any) {
+    return { success: false, rules: [], error: `JSON 解析失败: ${e?.message || e}` }
+  }
+}
+
+export function applyApprovedImportRules(items: ReconciledRuleItem[]): {
+  updatedCount: number
+  newCount: number
+  untouchedCount: number
+} {
+  const current = getCompanyRules()
+  const approved = items.filter(it => it.approved)
+  let updatedCount = 0
+  let newCount = 0
+
+  const now = Date.now()
+
+  for (const item of approved) {
+    // 寻找本地对应规则
+    const localIdx = current.findIndex(
+      r => (item.localRule && r.id === item.localRule.id) ||
+           r.company.trim().toLowerCase() === item.company.trim().toLowerCase() ||
+           (item.localRule && r.company.trim().toLowerCase() === item.localRule.company.trim().toLowerCase())
+    )
+
+    if (item.selectedStrategy === 'keep_local') {
+      // 保持本地不变
+      continue
+    }
+
+    if (item.selectedStrategy === 'take_imported') {
+      const formatted: CompanyPreferenceRule = {
+        id: localIdx >= 0 ? current[localIdx].id : item.importedRule.id || `rule_${now}_${Math.random().toString(36).slice(2, 6)}`,
+        company: item.importedRule.company.trim(),
+        aliases: item.importedRule.aliases || [],
+        rule: item.importedRule.rule.trim(),
+        purpose_short_rule: item.importedRule.purpose_short_rule?.trim() || undefined,
+        examples: item.importedRule.examples || (localIdx >= 0 ? current[localIdx].examples : []),
+        enabled: item.importedRule.enabled ?? true,
+        updatedAt: now
+      }
+
+      if (localIdx >= 0) {
+        current[localIdx] = formatted
+        updatedCount++
+      } else {
+        current.push(formatted)
+        newCount++
+      }
+      continue
+    }
+
+    // 默认或 ai_merged
+    const mergedRuleText = item.customRuleText.trim()
+    const mergedShortRule = item.customShortRuleText.trim() || undefined
+
+    const mergedEntry: CompanyPreferenceRule = {
+      id: localIdx >= 0 ? current[localIdx].id : item.importedRule.id || `rule_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      company: item.company.trim(),
+      aliases: item.aliases,
+      rule: mergedRuleText,
+      purpose_short_rule: mergedShortRule,
+      examples: [
+        ...(localIdx >= 0 && current[localIdx].examples ? current[localIdx].examples! : []),
+        ...(item.importedRule.examples || [])
+      ].slice(-5),
+      enabled: true,
+      updatedAt: now
+    }
+
+    if (localIdx >= 0) {
+      current[localIdx] = mergedEntry
+      updatedCount++
+    } else {
+      current.push(mergedEntry)
+      newCount++
+    }
+  }
+
+  saveCompanyRules(current)
+  return {
+    updatedCount,
+    newCount,
+    untouchedCount: current.length - updatedCount - newCount
   }
 }
 

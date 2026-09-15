@@ -23,14 +23,14 @@
         <el-table-column label="页" width="56" min-width="56" align="center" class-name="rf-col-pages" show-overflow-tooltip>
           <template #default="{ row }">{{ formatPages(row.pagesOriginal) }}</template>
         </el-table-column>
-        <el-table-column label="公司" min-width="160">
+        <el-table-column label="公司" min-width="170">
           <template #default="{ row }">
-            <el-input
+            <CandidateSelect
               v-if="row.extract"
               v-model="row.extract.company_name"
-              size="small"
-              clearable
+              :candidates="row.extract.company_name_candidates"
               placeholder="公司名称"
+              :popover-width="280"
             />
             <span v-else class="text-gray-400">-</span>
           </template>
@@ -71,29 +71,30 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="用途" min-width="200">
+        <el-table-column label="用途" min-width="220">
           <template #default="{ row }">
-            <el-input
+            <CandidateSelect
               v-if="row.extract"
               v-model="row.extract.purpose"
-              size="small"
-              clearable
+              :candidates="row.extract.purpose_candidates"
               type="textarea"
               :autosize="{ minRows: 1, maxRows: 3 }"
               placeholder="用途说明"
+              :popover-width="380"
               @input="onPurposeEdit(row)"
+              @candidate-select="onPurposeCandidateSelect(row, $event)"
             />
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="用途(精简)" min-width="160">
+        <el-table-column label="用途(精简)" min-width="170">
           <template #default="{ row }">
-            <el-input
+            <CandidateSelect
               v-if="row.extract"
               v-model="(row.extract as any).purpose_short"
-              size="small"
-              clearable
+              :candidates="(row.extract as any).purpose_short_candidates"
               placeholder="用途精简(用于文件名)"
+              :popover-width="300"
             />
             <span v-else class="text-gray-400">-</span>
           </template>
@@ -163,9 +164,10 @@
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { SplitInvoice } from '../lib/types'
-import { extractInvoiceByGemini, GeminiApiError } from '../lib/gemini'
+import { extractInvoiceByGemini, executeWithKeyRotation, resetGlobalKeyState } from '../lib/gemini'
 import { getApiKeys, getEffectivePrompt, getModelId } from '../lib/storage'
 import ExperienceDialog from './ExperienceDialog.vue'
+import CandidateSelect from './CandidateSelect.vue'
 
 const props = defineProps<{
   invoices: SplitInvoice[]
@@ -175,55 +177,26 @@ const busy = ref(false)
 const hasKeys = computed(() => getApiKeys().length > 0)
 const keyStatusMsg = ref('')
 
-const nextKeyIndex = ref(0)
-const keyState = ref<Map<string, KeyState>>(new Map())
-
-type KeyState = {
-  nextAvailableAt: number
-}
-
-function sleep(ms: number) {
-  return new Promise<void>(resolve => setTimeout(resolve, ms))
-}
-
-function nowMs() {
-  return Date.now()
-}
-
-function pickNextUsableKey(keys: string[], state: Map<string, KeyState>): string | null {
-  if (keys.length === 0) return null
-
-  const start = nextKeyIndex.value % keys.length
-  for (let i = 0; i < keys.length; i++) {
-    const idx = (start + i) % keys.length
-    const k = keys[idx]
-    const s = state.get(k)
-    if (!s || s.nextAvailableAt <= nowMs()) {
-      nextKeyIndex.value = idx + 1
-      return k
-    }
-  }
-
-  return null
-}
-
-async function waitUntilAnyKeyAvailable(keys: string[], state: Map<string, KeyState>) {
-  const times = keys.map(k => state.get(k)?.nextAvailableAt ?? 0).filter(t => t > nowMs())
-  if (times.length === 0) return
-  const waitMs = Math.max(0, Math.min(...times) - nowMs())
-  if (waitMs > 0) await sleep(waitMs)
-}
-
 const expDialogVisible = ref(false)
 const selectedInvoiceForExp = ref<SplitInvoice | null>(null)
 
 function isRowModified(row: SplitInvoice): boolean {
   if (!row.extract || !row.rawExtract) return false
+  const cNow = String(row.extract.company_name ?? '').trim()
+  const cOrig = String(row.rawExtract.company_name ?? '').trim()
   const pNow = String(row.extract.purpose ?? '').trim()
   const pOrig = String(row.rawExtract.purpose ?? '').trim()
   const sNow = String((row.extract as any).purpose_short ?? '').trim()
   const sOrig = String((row.rawExtract as any).purpose_short ?? '').trim()
-  return (pNow !== pOrig || sNow !== sOrig) && (pNow.length > 0 || sNow.length > 0)
+  return (
+    (cNow !== cOrig || pNow !== pOrig || sNow !== sOrig) &&
+    (cNow.length > 0 || pNow.length > 0 || sNow.length > 0)
+  )
+}
+
+function onPurposeCandidateSelect(row: SplitInvoice, cand: string) {
+  if (!row.extract) return
+  onPurposeEdit(row)
 }
 
 function openExperienceDialog(row: SplitInvoice) {
@@ -281,55 +254,19 @@ async function extractOneInvoice(
   if (!inv) return
   inv.error = undefined
 
-  const state = keyState.value
-  let lastErr: unknown = undefined
-
-  for (let attempt = 0; attempt < keys.length; attempt++) {
-    let apiKey = pickNextUsableKey(keys, state)
-    if (!apiKey) {
-      keyStatusMsg.value = `发票 ${invoiceIndex + 1}/${props.invoices.length}: 所有 API Key 均达上限，等待可用...`
-      await waitUntilAnyKeyAvailable(keys, state)
-      apiKey = pickNextUsableKey(keys, state)
-    }
-    if (!apiKey) {
-      lastErr = new Error('没有可用的 API Key（均处于限流等待中）')
-      break
-    }
-
-    const keyIndex = keys.indexOf(apiKey) + 1
-    keyStatusMsg.value = `发票 ${invoiceIndex + 1}/${props.invoices.length}: 正在使用 API Key ${keyIndex}...`
-
-    try {
-      const ex = await extractInvoiceByGemini({ apiKey, modelId, prompt, pdfBlob: inv.pdfBlob })
-      inv.extract = ex
-      inv.rawExtract = { ...ex }
-      lastErr = undefined
-      break
-    } catch (e) {
-      lastErr = e
-      if (e instanceof GeminiApiError) {
-        if (e.status === 429 && e.retryAfterSeconds && e.retryAfterSeconds > 0) {
-          keyStatusMsg.value = `API Key ${keyIndex} 达上限，冻结 ${e.retryAfterSeconds}s，切换下一个...`
-          state.set(apiKey, { nextAvailableAt: nowMs() + e.retryAfterSeconds * 1000 + 250 })
-          continue
-        }
-        if (e.status === 429) {
-          keyStatusMsg.value = `API Key ${keyIndex} 达上限，冻结 30s，切换下一个...`
-          state.set(apiKey, { nextAvailableAt: nowMs() + 30_000 })
-          continue
-        }
-        if (e.status >= 500 && e.status < 600) {
-          keyStatusMsg.value = `API Key ${keyIndex} 服务端错误，暂时冻结，切换下一个...`
-          state.set(apiKey, { nextAvailableAt: nowMs() + 3_000 })
-          continue
-        }
-      }
-      break
-    }
-  }
-
-  if (lastErr) {
-    inv.error = lastErr instanceof Error ? lastErr.message : String(lastErr)
+  try {
+    const ex = await executeWithKeyRotation({
+      keys,
+      actionName: `发票 ${invoiceIndex + 1}/${props.invoices.length}`,
+      onStatusChange: (msg) => {
+        keyStatusMsg.value = msg
+      },
+      fn: (apiKey) => extractInvoiceByGemini({ apiKey, modelId, prompt, pdfBlob: inv.pdfBlob })
+    })
+    inv.extract = ex
+    inv.rawExtract = { ...ex }
+  } catch (e: any) {
+    inv.error = e instanceof Error ? e.message : String(e)
   }
 }
 
@@ -366,7 +303,7 @@ async function runExtract() {
   try {
     const modelId = getModelId()
     const prompt = getEffectivePrompt()
-    keyState.value = new Map<string, KeyState>()
+    resetGlobalKeyState()
 
     for (let i = 0; i < props.invoices.length; i++) {
       await extractOneInvoice(i, keys, modelId, prompt)

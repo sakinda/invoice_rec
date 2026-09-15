@@ -29,7 +29,7 @@
           style="max-width: 280px"
         />
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <el-button size="small" @click="openAddDialog">
             新增规则
           </el-button>
@@ -46,7 +46,39 @@
             class="hidden"
             @change="handleFileSelected"
           />
+
+          <!-- 独立的 iCloud 同步操作组 -->
+          <el-button
+            size="small"
+            type="success"
+            plain
+            :loading="icloudLoading"
+            @click="handleBackupToICloud"
+          >
+            ☁️ 备份到 iCloud
+          </el-button>
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            :loading="icloudLoading"
+            @click="handleImportFromICloud"
+          >
+            ☁️ 从 iCloud 导入
+          </el-button>
         </div>
+      </div>
+
+      <!-- iCloud 同步状态提示条 -->
+      <div v-if="icloudStatus.available" class="text-[11px] text-gray-500 bg-blue-50/50 px-2.5 py-1.5 rounded border border-blue-100 flex items-center justify-between gap-2 flex-wrap">
+        <span class="flex items-center gap-1">
+          <span>☁️ <b>iCloud 互通目录:</b> iCloud Drive/MultiPlatform/invoice_skills_icloud.json</span>
+          <span v-if="icloudStatus.fileExists" class="text-green-600 font-medium">（已建立备份文件）</span>
+          <span v-else class="text-amber-600">（待首次备份）</span>
+        </span>
+        <span v-if="icloudStatus.updatedAt" class="text-gray-400">
+          上次同步: {{ formatDateTime(icloudStatus.updatedAt) }}
+        </span>
       </div>
 
       <!-- 规则列表 -->
@@ -161,6 +193,13 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 导入向导弹窗 -->
+    <ImportWizardDialog
+      v-model:visible="wizardVisible"
+      :json-content="wizardJsonContent"
+      @applied="onWizardApplied"
+    />
   </el-card>
 </template>
 
@@ -168,12 +207,18 @@
 import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { CompanyPreferenceRule } from '../lib/types'
+import ImportWizardDialog from './ImportWizardDialog.vue'
+import {
+  backupToICloud,
+  checkICloudStatus,
+  fetchICloudRulesJson,
+  type ICloudStatus
+} from '../lib/icloud'
 import {
   deleteCompanyRule,
   exportRulesJson,
   getCompanyRules,
   getExperienceEnabled,
-  importRulesJson,
   saveCompanyRules,
   setExperienceEnabled,
   upsertCompanyRule
@@ -183,6 +228,12 @@ const experienceEnabled = ref(true)
 const rules = ref<CompanyPreferenceRule[]>([])
 const searchQuery = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const wizardVisible = ref(false)
+const wizardJsonContent = ref('')
+
+const icloudLoading = ref(false)
+const icloudStatus = ref<ICloudStatus>({ available: false, fileExists: false, updatedAt: null })
 
 const editDialogVisible = ref(false)
 const editingRuleId = ref<string | null>(null)
@@ -198,8 +249,14 @@ function loadData() {
   rules.value = getCompanyRules()
 }
 
+async function refreshICloudStatus() {
+  const st = await checkICloudStatus()
+  icloudStatus.value = st
+}
+
 onMounted(() => {
   loadData()
+  refreshICloudStatus()
 })
 
 defineExpose({
@@ -313,17 +370,81 @@ async function handleFileSelected(e: Event) {
   if (!file) return
   try {
     const text = await file.text()
-    const res = importRulesJson(text)
-    if (res.success) {
-      loadData()
-      ElMessage.success(`导入成功，共解析并更新 ${res.count} 条规则！`)
-    } else {
-      ElMessage.error(res.error || '导入失败')
-    }
+    wizardJsonContent.value = text
+    wizardVisible.value = true
   } catch (err: any) {
     ElMessage.error(`读取文件失败: ${err?.message || err}`)
   } finally {
     if (fileInputRef.value) fileInputRef.value.value = ''
   }
 }
+
+function onWizardApplied(result: { updatedCount: number; newCount: number; untouchedCount: number }) {
+  loadData()
+  refreshICloudStatus()
+  ElMessage.success({
+    message: `规则导入同步完成！新增 ${result.newCount} 条，更新/合并 ${result.updatedCount} 条，本地未涉及的 ${result.untouchedCount} 条规则已完整保留。`,
+    duration: 5000
+  })
+}
+
+function formatDateTime(ts?: number | null) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+async function handleBackupToICloud() {
+  icloudLoading.value = true
+  try {
+    const res = await backupToICloud(getCompanyRules())
+    if (res.success) {
+      await refreshICloudStatus()
+      if (res.viaDirect) {
+        ElMessage.success({
+          message: `已成功增量同步 ${res.count} 条规则至 Mac iCloud 目录（MultiPlatform/invoice_skills_icloud.json）！`,
+          duration: 4000
+        })
+      } else {
+        ElMessage.success({
+          message: `已生成并下载 invoice_skills_icloud.json（共 ${res.count} 条），请在系统“文件”中将其存入 iCloud 云盘 MultiPlatform 目录！`,
+          duration: 6000
+        })
+      }
+    } else {
+      ElMessage.error(res.error || '备份失败')
+    }
+  } catch (err: any) {
+    ElMessage.error(`备份异常: ${err?.message || err}`)
+  } finally {
+    icloudLoading.value = false
+  }
+}
+
+async function handleImportFromICloud() {
+  icloudLoading.value = true
+  try {
+    const res = await fetchICloudRulesJson()
+    if (!res.success) {
+      ElMessage.warning(
+        res.error || '未直连到 Mac 本地服务的 iCloud 接口。在 iOS 端独立使用时，请点击“导入规则”，在系统文件选择器中点进“iCloud 云盘 - MultiPlatform”选取备份文件！'
+      )
+      return
+    }
+
+    if (!res.exists || !res.content) {
+      ElMessage.warning('iCloud 目录中尚未找到 invoice_skills_icloud.json 文件，请先在某端点击“备份到 iCloud”')
+      return
+    }
+
+    wizardJsonContent.value = res.content
+    wizardVisible.value = true
+    ElMessage.info('已成功读取 iCloud 备份文件，正在打开智能审查向导...')
+  } catch (err: any) {
+    ElMessage.error(`读取 iCloud 异常: ${err?.message || err}`)
+  } finally {
+    icloudLoading.value = false
+  }
+}
 </script>
+

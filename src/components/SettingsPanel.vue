@@ -6,7 +6,7 @@
     <el-form label-position="top" class="rf-form">
       <div class="grid grid-cols-1 gap-4">
         <el-form-item label="API Key（多个用逗号分隔，自动轮替）">
-          <el-input v-model="apiKeysCsv" type="textarea" :rows="3" placeholder="AIza...,AIza..." />
+          <el-input v-model="apiKeysCsv" type="textarea" :rows="3" placeholder="请输入您的 Gemini API Key，支持填入多个，以英文逗号分隔，系统将自动轮替请求" />
         </el-form-item>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

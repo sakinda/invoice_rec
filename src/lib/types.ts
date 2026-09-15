@@ -2,10 +2,13 @@ export type GeminiModelId = 'gemini-2.5-flash-lite' | 'gemini-3.0-flash-preview'
 
 export type InvoiceExtract = {
   company_name: string
+  company_name_candidates?: string[]
   date: string
   invoice_no: string
   purpose: string
+  purpose_candidates?: string[]
   purpose_short?: string
+  purpose_short_candidates?: string[]
   tva: string
   total_amount: string
   currency: string
@@ -37,4 +40,25 @@ export type CompanyPreferenceRule = {
   examples?: CompanyRuleExample[]
   enabled: boolean
   updatedAt: number
+}
+
+export type ReconcileStrategy = 'ai_merged' | 'keep_local' | 'take_imported'
+
+export type ReconciledRuleItem = {
+  id: string
+  company: string
+  aliases: string[]
+  type: 'merged' | 'new' | 'identical'
+  localRule?: CompanyPreferenceRule
+  importedRule: CompanyPreferenceRule
+  suggestedRule: {
+    rule: string
+    purpose_short_rule?: string
+    aliases?: string[]
+    explanation?: string
+  }
+  selectedStrategy: ReconcileStrategy
+  customRuleText: string
+  customShortRuleText: string
+  approved: boolean
 }

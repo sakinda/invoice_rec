@@ -6,7 +6,11 @@
     destroy-on-close
     :close-on-click-modal="false"
   >
-    <div v-loading="loading" element-loading-text="Gemini 正在分析修改意图并提炼/融合规则..." class="flex flex-col gap-4">
+    <div
+      v-loading="loading"
+      :element-loading-text="keyStatusMsg || 'Gemini 正在分析修改意图并提炼/融合规则...'"
+      class="flex flex-col gap-4"
+    >
       <!-- 变动比对区 -->
       <div class="bg-[color:var(--rf-surface-low)] rounded-lg p-3 text-xs flex flex-col gap-2 border">
         <div class="flex items-center justify-between">
@@ -172,6 +176,8 @@ async function initAndDistill() {
   await doDistill()
 }
 
+const keyStatusMsg = ref('')
+
 async function doDistill() {
   const keys = getApiKeys()
   if (keys.length === 0) {
@@ -182,10 +188,11 @@ async function doDistill() {
   }
 
   loading.value = true
+  keyStatusMsg.value = ''
   try {
     const modelId = getModelId()
     const res = await distillExperienceRule({
-      apiKey: keys[0],
+      apiKeys: keys,
       modelId,
       company: formCompany.value || companyName.value,
       originalPurpose: originalPurpose.value,
@@ -200,7 +207,10 @@ async function doDistill() {
             purpose_short_rule: existingRuleObj.value.purpose_short_rule,
             aliases: existingRuleObj.value.aliases
           }
-        : undefined
+        : undefined,
+      onStatusChange: (msg) => {
+        keyStatusMsg.value = msg
+      }
     })
 
     formCompany.value = res.company || formCompany.value
@@ -216,8 +226,14 @@ async function doDistill() {
     if (!formRule.value) {
       formRule.value = `用途固定格式为：${userPurpose.value || originalPurpose.value}`
     }
+    if (!formShortRule.value && userShort.value) {
+      formShortRule.value = userShort.value
+    }
   } finally {
     loading.value = false
+    setTimeout(() => {
+      keyStatusMsg.value = ''
+    }, 2000)
   }
 }
 
