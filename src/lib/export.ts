@@ -14,16 +14,19 @@ export function applyRenameTemplate(tpl: string, inv: SplitInvoice): string {
   const company = sanitizeFilenamePart(e?.company_name ?? 'UNKNOWN')
   const date = sanitizeFilenamePart(e?.date ?? 'UNKNOWN_DATE')
   const amount = sanitizeFilenamePart(e?.total_amount ?? '0.00')
-  const invoiceNo = sanitizeFilenamePart(e?.invoice_no ?? '')
+  const rawInvoiceNo = sanitizeFilenamePart(e?.invoice_no ?? '').trim()
+  const cleanInvoiceNo = rawInvoiceNo.replace(/^\[+|\]+$/g, '').trim()
+  const invoiceNo = cleanInvoiceNo ? `[${cleanInvoiceNo}]` : ''
   const purposeShort = sanitizeFilenamePart((e as any)?.purpose_short ?? '')
   const currencyRaw = String(e?.currency ?? '').toUpperCase()
   const currency = sanitizeFilenamePart(currencyRaw === 'EUR' ? 'EUROS' : currencyRaw)
 
   const raw = tpl
+    .replaceAll('[{invoice_no}]', invoiceNo)
+    .replaceAll('{invoice_no}', invoiceNo)
     .replaceAll('{company}', company)
     .replaceAll('{date}', date)
     .replaceAll('{amount}', amount)
-    .replaceAll('{invoice_no}', invoiceNo)
     .replaceAll('{purpose_short}', purposeShort)
     .replaceAll('{currency}', currency)
 
@@ -56,8 +59,8 @@ export function buildExcelRows(
     const col6 = e.currency === 'EUR' ? 'EUROS' : e.currency
     const col7 = e.tva
     // 第8列与导出的 PDF 文件名保持完全一致（含前缀 Facture(Richelieu)）
-    const filenameNoExt = applyRenameTemplate(renameTemplate, inv)
-    const col8 = filenameNoExt.replace(/\.pdf$/i, '')
+    const filename = applyRenameTemplate(renameTemplate, inv)
+    const col8 = filename
     const col9 = String(e.purpose ?? '').trim()
     rows.push([col1, col2, col3, col4, col5, col6, col7, col8, col9])
   }
