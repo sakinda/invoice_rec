@@ -87,16 +87,33 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="用途(精简)" min-width="170">
+        <el-table-column label="用途(精简)" min-width="190">
           <template #default="{ row }">
-            <CandidateSelect
-              v-if="row.extract"
-              v-model="(row.extract as any).purpose_short"
-              :candidates="(row.extract as any).purpose_short_candidates"
-              placeholder="用途精简(用于文件名)"
-              :popover-width="300"
-            />
-            <span v-else class="text-gray-400">-</span>
+            <div class="flex flex-col gap-1 w-full">
+              <CandidateSelect
+                v-if="row.extract"
+                v-model="(row.extract as any).purpose_short"
+                :candidates="(row.extract as any).purpose_short_candidates"
+                placeholder="用途精简(用于文件名)"
+                :popover-width="320"
+                :max-characters="48"
+                @overlimit-click="openOverlimitDialog(row)"
+              />
+              <div
+                v-if="row.extract && isPurposeShortOverlimit(row.extract.purpose_short)"
+                class="flex items-center justify-between text-[11px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200"
+              >
+                <span>⚠️ 超过 48 字 ({{ Array.from(row.extract.purpose_short || '').length }}字)</span>
+                <button
+                  type="button"
+                  class="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer ml-1 shrink-0"
+                  @click="openOverlimitDialog(row)"
+                >
+                  协商修改方案
+                </button>
+              </div>
+              <span v-else-if="!row.extract" class="text-gray-400">-</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="310">
@@ -157,6 +174,14 @@
       :invoice="selectedInvoiceForExp"
       @saved="onExperienceSaved"
     />
+
+    <!-- 精简用途超限协商弹窗 -->
+    <OverlimitDialog
+      v-model:visible="overlimitDialogVisible"
+      :invoices="overlimitInvoices"
+      :current-index="overlimitCurrentIndex"
+      @apply="onOverlimitResolved"
+    />
   </el-card>
 </template>
 
@@ -167,6 +192,7 @@ import type { SplitInvoice } from '../lib/types'
 import { extractInvoiceByGemini, executeWithKeyRotation, resetGlobalKeyState } from '../lib/gemini'
 import { getApiKeys, getEffectivePrompt, getModelId } from '../lib/storage'
 import ExperienceDialog from './ExperienceDialog.vue'
+import OverlimitDialog from './OverlimitDialog.vue'
 import CandidateSelect from './CandidateSelect.vue'
 
 const props = defineProps<{
@@ -179,6 +205,28 @@ const keyStatusMsg = ref('')
 
 const expDialogVisible = ref(false)
 const selectedInvoiceForExp = ref<SplitInvoice | null>(null)
+
+const overlimitDialogVisible = ref(false)
+const overlimitInvoices = ref<SplitInvoice[]>([])
+const overlimitCurrentIndex = ref(0)
+
+function isPurposeShortOverlimit(text?: string): boolean {
+  if (!text) return false
+  return Array.from(String(text).trim()).length > 48
+}
+
+function openOverlimitDialog(row: SplitInvoice) {
+  overlimitInvoices.value = [row]
+  overlimitCurrentIndex.value = 0
+  overlimitDialogVisible.value = true
+}
+
+function onOverlimitResolved(invId: string, finalVal: string) {
+  const target = props.invoices.find(inv => inv.id === invId)
+  if (target && target.extract) {
+    ;(target.extract as any).purpose_short = finalVal
+  }
+}
 
 function isRowModified(row: SplitInvoice): boolean {
   if (!row.extract || !row.rawExtract) return false
@@ -283,6 +331,11 @@ async function retryOne(index: number) {
   try {
     await extractOneInvoice(index, keys, modelId, prompt)
     keyStatusMsg.value = '已完成该行重试'
+    const inv = props.invoices[index]
+    if (inv?.extract && isPurposeShortOverlimit(inv.extract.purpose_short)) {
+      openOverlimitDialog(inv)
+      ElMessage.warning('检测到精简用途超过 48 个字符，已为您弹出协商修改方案。')
+    }
   } finally {
     busy.value = false
     setTimeout(() => {
@@ -312,6 +365,16 @@ async function runExtract() {
     if (!hasKeys.value) return
     keyStatusMsg.value = '抽取流程已完成'
     ElMessage.success('抽取流程已完成')
+
+    const overlimitList = props.invoices.filter(
+      inv => inv.extract && isPurposeShortOverlimit(inv.extract.purpose_short)
+    )
+    if (overlimitList.length > 0) {
+      overlimitInvoices.value = overlimitList
+      overlimitCurrentIndex.value = 0
+      overlimitDialogVisible.value = true
+      ElMessage.warning(`检测到 ${overlimitList.length} 张发票的精简用途超过 48 个字符，已为您弹出协商修改方案。`)
+    }
   } finally {
     busy.value = false
     setTimeout(() => {

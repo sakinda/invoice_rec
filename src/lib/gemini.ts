@@ -132,8 +132,8 @@ export async function extractInvoiceByGemini(opts: {
   const purposeShortRaw = v.purpose_short ?? v.purpose_brief ?? v.purpose_compact ?? ''
 
   const purposeShortNorm = String(purposeShortRaw ?? '').trim().replace(/\s+/g, ' ')
-  const purposeShortLimited = Array.from(purposeShortNorm).slice(0, 24).join('')
-  const purposeShortFinal = purposeShortLimited.length > 0 ? purposeShortLimited : '[]'
+  // 不直接强制截断，完整保留原始提取文本供用户审核与协商
+  const purposeShortFinal = purposeShortNorm.length > 0 ? purposeShortNorm : '[]'
 
   const company = String(v.company_name ?? '').trim().replace(/\s+/g, ' ')
   const purpose = String(v.purpose ?? '').trim().replace(/\s+/g, ' ')
@@ -143,8 +143,7 @@ export async function extractInvoiceByGemini(opts: {
   const purposeShortCandidates = normalizeCandidates(
     purposeShortFinal,
     v.purpose_short_candidates,
-    5,
-    s => Array.from(s).slice(0, 24).join('')
+    5
   )
 
   return {
@@ -160,6 +159,67 @@ export async function extractInvoiceByGemini(opts: {
     total_amount: String(v.total_amount ?? '').trim(),
     currency: String(v.currency ?? '').trim().toUpperCase()
   }
+}
+
+export async function condensePurposeShort(opts: {
+  apiKey?: string
+  apiKeys?: string[]
+  modelId: GeminiModelId
+  company: string
+  purpose: string
+  currentShort: string
+  onStatusChange?: (msg: string) => void
+}): Promise<string> {
+  if (opts.apiKeys && opts.apiKeys.length > 0) {
+    return executeWithKeyRotation({
+      keys: opts.apiKeys,
+      actionName: '精简用途浓缩',
+      onStatusChange: opts.onStatusChange,
+      fn: (key) => condensePurposeShort({ ...opts, apiKey: key, apiKeys: undefined })
+    })
+  }
+
+  const apiKey = opts.apiKey
+  if (!apiKey) throw new Error('未配置 API Key')
+
+  const prompt = `你是一个专业的财务发票命名整理专家。
+当前发票的精简用途（purpose_short）超出了 48 个字符的上限限制。
+请根据以下发票信息，将其重新精炼压缩为一个不超过 48 个字符的精简短语（用于生成文件名）：
+- 公司: ${opts.company || '未知公司'}
+- 完整用途: ${opts.purpose || ''}
+- 当前超限短语: "${opts.currentShort}"
+
+【要求】
+1. 提取最核心的商品/服务类别或关键单品，保留最必要的描述。
+2. 严格限制在 48 个字符以内（必须 <= 48 个字符）。
+3. 只能直接输出精炼后的短语纯文本，严禁包含任何解释、引号、标点包裹或 Markdown 标记。`
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    opts.modelId
+  )}:generateContent?key=${encodeURIComponent(apiKey)}`
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1 }
+    })
+  })
+
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '')
+    throw new Error(`AI 浓缩请求失败: ${resp.status} ${t}`)
+  }
+
+  const json = (await resp.json()) as any
+  const text =
+    json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') ??
+    json?.candidates?.[0]?.content?.parts?.[0]?.text ??
+    ''
+
+  const cleaned = text.trim().replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, '').replace(/\s+/g, ' ')
+  return cleaned
 }
 
 export function pickApiKeyRoundRobin(keys: string[], index: number): string {
@@ -338,7 +398,7 @@ ${
    - "company": 规范的公司名称。
    - "aliases": 识别或补充该公司的常见变体/别名（字符串数组，如包含不同大小写、缩写或空格变体）。
    - "rule": 用途(purpose)提取的通用规范说明，语言精炼明确，指导大模型如何生成期望格式。
-   - "purpose_short_rule": 精简用途(purpose_short)的规范（用于生成文件名，通常不超过14个汉字或24字符）。
+   - "purpose_short_rule": 精简用途(purpose_short)的规范（用于生成文件名，通常不超过48个字符）。
    - "explanation": 简短说明本次提炼/融合的核心逻辑（1句话，中文）。
 
 【输出格式】

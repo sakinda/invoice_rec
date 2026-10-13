@@ -11,6 +11,7 @@ const props = withDefaults(
     clearable?: boolean
     autosize?: any
     popoverWidth?: number
+    maxCharacters?: number
   }>(),
   {
     candidates: () => [],
@@ -19,7 +20,8 @@ const props = withDefaults(
     size: 'small',
     clearable: true,
     autosize: () => ({ minRows: 1, maxRows: 3 }),
-    popoverWidth: 320
+    popoverWidth: 320,
+    maxCharacters: undefined
   }
 )
 
@@ -28,6 +30,7 @@ const emit = defineEmits<{
   (e: 'change', value: string): void
   (e: 'input', value: string): void
   (e: 'candidateSelect', value: string, index: number): void
+  (e: 'overlimitClick'): void
 }>()
 
 const popoverVisible = ref(false)
@@ -83,6 +86,15 @@ function selectCandidate(cand: string, idx: number) {
         @change="onChange"
       />
 
+      <span
+        v-if="maxCharacters && Array.from(modelValue || '').length > maxCharacters"
+        class="shrink-0 text-[10px] px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded font-medium flex items-center gap-0.5 cursor-pointer hover:bg-rose-100"
+        :title="`已超出 ${maxCharacters} 字符限制（当前 ${Array.from(modelValue).length} 字），点击协商修改方案`"
+        @click="$emit('overlimitClick')"
+      >
+        ⚠️超限({{ Array.from(modelValue).length }}字)
+      </span>
+
       <el-popover
         v-if="hasMultiple"
         v-model:visible="popoverVisible"
@@ -131,7 +143,16 @@ function selectCandidate(cand: string, idx: number) {
                 </span>
                 <span class="break-words whitespace-pre-wrap leading-relaxed flex-1">{{ cand }}</span>
               </div>
-              <span v-if="cand === modelValue" class="text-blue-600 shrink-0 font-bold ml-1">✓</span>
+              <div class="flex items-center gap-1 shrink-0 ml-1">
+                <span
+                  v-if="maxCharacters"
+                  class="text-[10px] font-mono px-1 py-0.2 rounded"
+                  :class="Array.from(cand).length <= maxCharacters ? 'text-gray-400' : 'text-rose-600 bg-rose-50 border border-rose-200'"
+                >
+                  {{ Array.from(cand).length }}字
+                </span>
+                <span v-if="cand === modelValue" class="text-blue-600 font-bold">✓</span>
+              </div>
             </div>
           </div>
         </div>

@@ -21,7 +21,7 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
    - 如果原文是法语或其他外语，请准确翻译成尽量精简的中文。
    - 格式统一为：“商品名称 x数量”（例如：“木质A4夹板夹 x6”）。如果一张发票包含多个不同的商品，请用逗号将它们连接起来。
    - purpose_candidates (备选用途列表): 字符串数组，提供最多 5 种不同侧重点的备选用途方案（如：1. 匹配用户个性化规则的最优方案；2. 详尽商品明细与数量；3. 双语对照；4. 概括性业务大类；5. 原文摘录等）。最多5条，第1项必须与 purpose 一致。
-5. purpose_short (用途精简，用于文件命名): 将用途提炼为便于检索的短语（中文为主），不要超过 14 个汉字（或 24 个字符）（最推荐方案）。
+5. purpose_short (用途精简，用于文件命名): 将用途提炼为便于检索的短语（中文为主），不要超过 48 个字符（最推荐方案）。
    - 【强制禁令】禁止任何形式的“YYYY-MM 上半月”或“YYYY-MM 下半月”类表述作为兜底（即使后面不跟“食品采购”等后缀也禁止）。
      - 【唯一例外】仅当 company_name 同时满足以下两个条件时，才允许使用“YYYY-MM 上半月 食品采购”或“YYYY-MM 下半月 食品采购”：
        1) company_name 为 “EUROPE CHINA”（大小写不敏感）。
@@ -29,7 +29,7 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
      - 除上述例外以外，绝对禁止出现“YYYY-MM 上半月 / YYYY-MM 下半月 / 半月”这类时间区间推测；无法确定时要么留白，要么输出更稳妥的大致类别，例如“食材采购”、“食品采购”、“电器设备采购”、“电子产品采购”、“办公用品采购”、“日用百货”、“家居用品采购”、“清洁用品采购”、“服装采购”、“药妆采购”、“水费”、“电费”、“燃气费”、“通讯费”、“网络费”、“交通费”、“加油费”、“停车费”、“酒店住宿”、“餐饮消费”、“服务费”、“维修费”、“医疗保健”、“教育培训”、“订阅费”、“软件服务”等。
    - 电商平台购买多个类目：归纳为大类（如“电子产品”、“厨具”、“办公用品”、“家居用品”、“清洁用品”等）。
    - 若存在单件大额商品（非食品）且单件金额 > 100 EUR：优先用具体商品名（如“微波炉”、“显示器”、“吸尘器”）。若无法确定单件金额，则退回使用大类。
-   - purpose_short_candidates (备选精简用途列表): 字符串数组，提供最多 5 种不同风格的精简备选（如：1. 最推荐精简用途；2. 核心大类标签；3. 关键单品名称；4. 双语简短标签；5. 紧凑分类标签等）。所有备选均不得超过 14 个汉字（或 24 字符），且第1项必须与 purpose_short 一致。
+   - purpose_short_candidates (备选精简用途列表): 字符串数组，提供最多 5 种不同风格的精简备选（如：1. 最推荐精简用途；2. 核心大类标签；3. 关键单品名称；4. 双语简短标签；5. 紧凑分类标签等）。所有备选均不得超过 48 个字符，且第1项必须与 purpose_short 一致。
 6. tva (TVA增值税): 仅提取增值税金额。只保留纯数字和对应的小数点，绝对不要带税率百分比，也不要带货币符号（例如正确格式为 "6.30"）。如果没有列出税额，请返回 "0.00"。
 7. total_amount (总金额): 仅提取发票的总金额（含税金额）。只保留纯数字和对应的小数点，绝对不要带货币符号（例如正确格式为 "37.78"）。
 8. currency (货币单位): 识别发票使用的货币，并返回标准的三个字母代码（如 "EUR", "USD", "CNY" 等）。
@@ -52,7 +52,8 @@ export const defaultPrompt = `你是一个专业的跨国财务审计与数据�
   "tva": "",
   "total_amount": "",
   "currency": ""
-}`
+}
+`
 
 export function getApiKeys(): string[] {
   const raw = localStorage.getItem(K.apiKeys) ?? ''
@@ -75,7 +76,7 @@ function ensurePromptHasPurposeShort(p: string): string {
     : '\n\n【新增字段: purpose_short（用途精简，用于文件命名）】\n' +
       '- 输出 JSON 中必须包含字段 "purpose_short"。\n' +
       '- 若无法确定，请返回 "[]"（不要留空）。\n' +
-      '- 不要超过 14 个汉字（或 24 个字符）。\n' +
+      '- 不要超过 48 个字符。\n' +
       '\n请确保输出 JSON 结构包含：\n' +
       '{\n' +
       '  "company_name": "",\n' +
@@ -128,7 +129,7 @@ function ensurePromptHasCandidates(p: string): string {
     '为了提供更丰富的选择，请针对“公司名 (company_name)”、“用途 (purpose)”和“用途精简 (purpose_short)”分别提供最多 5 种不同视角的备选方案数组，并确保最推荐的方案置于数组首位（index 0），且与主字段完全一致：\n' +
     '1. "company_name_candidates": 最多5个备选公司名（如：规范名称、全称/法律实体、简称/常用名、母公司/外文别名等）。\n' +
     '2. "purpose_candidates": 最多5个备选用途（如：个性化规则推荐、具体品名x数量、双语对照、概括大类、原文摘录等）。\n' +
-    '3. "purpose_short_candidates": 最多5个备选精简用途（如：最推荐短语、核心类别、重点单品、双语短语等，均<=14汉字或24字符）。\n' +
+    '3. "purpose_short_candidates": 最多5个备选精简用途（如：最推荐短语、核心类别、重点单品、双语短语等，均<=48字符）。\n' +
     '\n请确保返回的 JSON 结构包含以下字段：\n' +
     '{\n' +
     '  "company_name": "",\n' +
@@ -150,7 +151,11 @@ function ensurePromptHasCandidates(p: string): string {
 export function getPrompt(): string {
   const saved = localStorage.getItem(K.prompt)
   const p = ensurePromptHasPurposeShort(saved ?? defaultPrompt)
-  return ensurePromptHasCandidates(p)
+  const upgraded = p
+    .replaceAll('14 个汉字（或 24 个字符）', '48 个字符')
+    .replaceAll('14 个汉字（或 24 字符）', '48 个字符')
+    .replaceAll('14汉字或24字符', '48字符')
+  return ensurePromptHasCandidates(upgraded)
 }
 
 export function setPrompt(v: string) {
