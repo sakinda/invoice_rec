@@ -99,10 +99,13 @@ import {
   getModelId,
   getPrompt,
   getRenameTemplate,
+  getSeparator,
   setApiKeys,
   setModelId,
   setPrompt,
-  setRenameTemplate
+  setRenameTemplate,
+  setSeparator,
+  type TemplateSeparator
 } from '../lib/storage'
 import type { GeminiModelId } from '../lib/types'
 
@@ -127,8 +130,10 @@ function tokenTpl(k: TokenKey): string {
   return tokenMeta.find(t => t.key === k)?.tpl ?? `{${k}}`
 }
 
-function parseTemplate(tpl: string): { keys: TokenKey[]; sep: '_' | ' ' } {
-  const sep: '_' | ' ' = tpl.includes('_') ? '_' : ' '
+function parseTemplate(tpl: string, fallbackSep: TemplateSeparator = ' '): { keys: TokenKey[]; sep: TemplateSeparator } {
+  // 必须先剥离大括号内的字段标识（防止 invoice_no 与 purpose_short 中自带的下划线产生误判）
+  const withoutTokens = tpl.replace(/\{[^}]+\}/g, '').replace(/\.pdf$/i, '')
+  const sep: TemplateSeparator = withoutTokens.includes('_') ? '_' : (withoutTokens.includes(' ') ? ' ' : fallbackSep)
   const matches = Array.from(tpl.matchAll(/\{(date|company|invoice_no|purpose_short|amount|currency)\}/g)).map(
     m => m[1] as TokenKey
   )
@@ -150,7 +155,7 @@ const prompt = ref('')
 const renameTpl = ref('')
 const modelId = ref<GeminiModelId>('gemini-3.5-flash-lite')
 
-const separator = ref<'_' | ' '>('_')
+const separator = ref<TemplateSeparator>(getSeparator())
 const selectedTokenKeys = ref<TokenKey[]>(['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency'])
 
 const selectedTokensRoot = ref<HTMLElement | null>(null)
@@ -161,12 +166,22 @@ watchEffect(() => {
   prompt.value = getPrompt()
   modelId.value = getModelId()
 
+  const savedSep = getSeparator()
+  separator.value = savedSep
+
   const tpl = getRenameTemplate()
   renameTpl.value = tpl
-  const parsed = parseTemplate(tpl)
-  separator.value = parsed.sep
+  const parsed = parseTemplate(tpl, savedSep)
+  // 如果模板中有明确匹配出的 key 顺序，采用解析出来的 tokens；分隔符优先尊重固化的设置
   selectedTokenKeys.value = parsed.keys
 })
+
+watch(
+  separator,
+  (newSep) => {
+    setSeparator(newSep)
+  }
+)
 
 watch(
   [selectedTokenKeys, separator],
@@ -210,6 +225,7 @@ function removeToken(k: TokenKey) {
 function resetRenameTpl() {
   selectedTokenKeys.value = ['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency']
   separator.value = ' '
+  setSeparator(' ')
 }
 
 function resetPrompt() {
@@ -220,6 +236,7 @@ function save() {
   setApiKeys(apiKeysCsv.value)
   setPrompt(prompt.value)
   setRenameTemplate(renameTpl.value)
+  setSeparator(separator.value)
   setModelId(modelId.value)
   ElMessage.success('已保存')
 }

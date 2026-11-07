@@ -5,6 +5,7 @@ const K = {
   prompt: 'invoice_rec_ai.prompt',
   renameTpl: 'invoice_rec_ai.rename_tpl',
   modelId: 'invoice_rec_ai.model_id',
+  separator: 'invoice_rec_ai.separator',
   experienceEnabled: 'invoice_rec_ai.experience_enabled',
   companyRules: 'invoice_rec_ai.company_rules'
 } as const
@@ -105,7 +106,8 @@ function ensurePromptHasPurposeShort(p: string): string {
 
 function ensureRenameTemplateHasPurposeShort(tpl: string): string {
   if (tpl.includes('{purpose_short}')) return tpl
-  const sep = tpl.includes('_') ? '_' : ' '
+  const withoutTokens = tpl.replace(/\{[^}]+\}/g, '').replace(/\.pdf$/i, '')
+  const sep = withoutTokens.includes('_') ? '_' : getSeparator()
 
   if (tpl.includes('{invoice_no}')) {
     return tpl.replace('{invoice_no}', `{invoice_no}${sep}{purpose_short}`)
@@ -162,8 +164,21 @@ export function setPrompt(v: string) {
   localStorage.setItem(K.prompt, v)
 }
 
+export type TemplateSeparator = '_' | ' '
+
+export function getSeparator(): TemplateSeparator {
+  const v = localStorage.getItem(K.separator)
+  if (v === '_' || v === ' ') return v
+  return ' ' // 首次打开网页默认选择空格
+}
+
+export function setSeparator(v: TemplateSeparator) {
+  localStorage.setItem(K.separator, v)
+}
+
 export function getRenameTemplate(): string {
-  const fallback = '{date} {company} {invoice_no} {purpose_short} {amount} {currency}.pdf'
+  const sep = getSeparator()
+  const fallback = `{date}${sep}{company}${sep}{invoice_no}${sep}{purpose_short}${sep}{amount}${sep}{currency}.pdf`
   const saved = localStorage.getItem(K.renameTpl) ?? fallback
   return ensureRenameTemplateHasPurposeShort(saved)
 }
