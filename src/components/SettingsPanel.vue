@@ -12,9 +12,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <el-form-item label="模型">
             <el-select v-model="modelId" style="width: 100%">
-              <el-option label="🌟 gemini-3.8-flash (官方标准首选，极速平衡 1M 上下文)" value="gemini-3.8-flash" />
-              <el-option label="⚡ gemini-3.5-flash-lite (高吞吐极速执行)" value="gemini-3.5-flash-lite" />
-              <el-option label="🍃 gemini-3.1-flash-lite (高频低成本)" value="gemini-3.1-flash-lite" />
+              <el-option label="⚡ gemini-3.5-flash-lite (官方推荐首选，500 RPD 高吞吐极速)" value="gemini-3.5-flash-lite" />
+              <el-option label="🍃 gemini-3.1-flash-lite (高频低成本，500 RPD)" value="gemini-3.1-flash-lite" />
+              <el-option label="🌟 gemini-3.8-flash (深度推理，已优化 LOW 思考延迟，20 RPD)" value="gemini-3.8-flash" />
             </el-select>
           </el-form-item>
 
@@ -148,7 +148,7 @@ function buildTemplate(keys: TokenKey[], sep: '_' | ' '): string {
 const apiKeysCsv = ref('')
 const prompt = ref('')
 const renameTpl = ref('')
-const modelId = ref<GeminiModelId>('gemini-3.8-flash')
+const modelId = ref<GeminiModelId>('gemini-3.5-flash-lite')
 
 const separator = ref<'_' | ' '>('_')
 const selectedTokenKeys = ref<TokenKey[]>(['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency'])

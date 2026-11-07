@@ -71,6 +71,48 @@ function normalizeCandidates(primary: string, rawCandidates: any, maxLen = 5, it
   return list.slice(0, maxLen)
 }
 
+function buildGenerationConfig(modelId: GeminiModelId, baseConfig: Record<string, any> = {}) {
+  const config: Record<string, any> = { ...baseConfig }
+  // 针对 gemini-3.8-flash 开启轻量低思考级别 (LOW)，大幅压低首字延迟 (TTFT) 并缩短生成时间，避免免费层超时中断
+  if (modelId === 'gemini-3.8-flash') {
+    config.thinkingConfig = {
+      thinkingLevel: 'LOW'
+    }
+  }
+  return config
+}
+
+function extractResponseText(json: any): string {
+  const parts = json?.candidates?.[0]?.content?.parts
+  if (Array.isArray(parts) && parts.length > 0) {
+    // 关键优化：滤除思维链中的 thought 片段，仅提取最终交付的 text 内容，防止思考过程干扰 JSON 解析
+    const answerParts = parts.filter((p: any) => !p?.thought && p?.text)
+    if (answerParts.length > 0) {
+      return answerParts.map((p: any) => p.text).join('\n')
+    }
+  }
+  return json?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 90000): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const resp = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    return resp
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Gemini 请求超时（超过 ${Math.round(timeoutMs / 1000)} 秒无响应），建议切换为响应极快且配额更充足的 gemini-3.5-flash-lite 模型`)
+    }
+    throw err
+  } finally {
+    clearTimeout(id)
+  }
+}
+
 export async function extractInvoiceByGemini(opts: {
   apiKey: string
   modelId: GeminiModelId
@@ -83,7 +125,7 @@ export async function extractInvoiceByGemini(opts: {
     opts.modelId
   )}:generateContent?key=${encodeURIComponent(opts.apiKey)}`
 
-  const resp = await fetch(url, {
+  const resp = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -101,7 +143,7 @@ export async function extractInvoiceByGemini(opts: {
           ]
         }
       ],
-      generationConfig: { temperature: 0 }
+      generationConfig: buildGenerationConfig(opts.modelId, { temperature: 0 })
     })
   })
 
@@ -120,10 +162,7 @@ export async function extractInvoiceByGemini(opts: {
   }
 
   const json = (await resp.json()) as any
-  const text =
-    json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') ??
-    json?.candidates?.[0]?.content?.parts?.[0]?.text ??
-    ''
+  const text = extractResponseText(json)
 
   const parsed = safeJsonParse<InvoiceExtract>(text)
   if (!parsed.ok) throw new Error(`解析 JSON 失败: ${parsed.error}`)
@@ -198,12 +237,12 @@ export async function condensePurposeShort(opts: {
     opts.modelId
   )}:generateContent?key=${encodeURIComponent(apiKey)}`
 
-  const resp = await fetch(url, {
+  const resp = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1 }
+      generationConfig: buildGenerationConfig(opts.modelId, { temperature: 0.1 })
     })
   })
 
@@ -213,10 +252,7 @@ export async function condensePurposeShort(opts: {
   }
 
   const json = (await resp.json()) as any
-  const text =
-    json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') ??
-    json?.candidates?.[0]?.content?.parts?.[0]?.text ??
-    ''
+  const text = extractResponseText(json)
 
   const cleaned = text.trim().replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, '').replace(/\s+/g, ' ')
   return cleaned
@@ -415,12 +451,12 @@ ${
     opts.modelId
   )}:generateContent?key=${encodeURIComponent(apiKey)}`
 
-  const resp = await fetch(url, {
+  const resp = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1 }
+      generationConfig: buildGenerationConfig(opts.modelId, { temperature: 0.1 })
     })
   })
 
@@ -441,10 +477,7 @@ ${
   }
 
   const json = (await resp.json()) as any
-  const text =
-    json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') ??
-    json?.candidates?.[0]?.content?.parts?.[0]?.text ??
-    ''
+  const text = extractResponseText(json)
 
   const parsed = safeJsonParse<DistilledRuleResult>(text)
   if (!parsed.ok) throw new Error(`解析规则提炼 JSON 失败: ${parsed.error}`)
@@ -607,12 +640,12 @@ ${JSON.stringify(
           modelId
         )}:generateContent?key=${encodeURIComponent(apiKey)}`
 
-        const resp = await fetch(url, {
+        const resp = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.1 }
+            generationConfig: buildGenerationConfig(modelId, { temperature: 0.1 })
           })
         })
 
@@ -633,11 +666,7 @@ ${JSON.stringify(
         }
 
         const json = (await resp.json()) as any
-        return (
-          json?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('\n') ??
-          json?.candidates?.[0]?.content?.parts?.[0]?.text ??
-          ''
-        )
+        return extractResponseText(json)
       }
     })
 
