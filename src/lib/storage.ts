@@ -173,9 +173,9 @@ export function setRenameTemplate(v: string) {
 }
 
 export function getModelId(): GeminiModelId {
-  const v = (localStorage.getItem(K.modelId) ?? 'gemini-2.5-flash-lite') as GeminiModelId
-  if (v === 'gemini-2.5-flash-lite' || v === 'gemini-3.0-flash-preview') return v
-  return 'gemini-2.5-flash-lite'
+  const v = (localStorage.getItem(K.modelId) ?? 'gemini-3.8-flash') as GeminiModelId
+  if (v === 'gemini-3.8-flash' || v === 'gemini-3.5-flash-lite' || v === 'gemini-3.1-flash-lite') return v
+  return 'gemini-3.8-flash'
 }
 
 export function setModelId(v: GeminiModelId) {

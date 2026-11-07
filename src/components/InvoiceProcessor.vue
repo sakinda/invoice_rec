@@ -87,16 +87,17 @@
             <span v-else class="text-gray-400">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="用途(精简)" min-width="190">
+        <el-table-column label="用途(简称)" min-width="210">
           <template #default="{ row }">
             <div class="flex flex-col gap-1 w-full">
               <CandidateSelect
                 v-if="row.extract"
                 v-model="(row.extract as any).purpose_short"
                 :candidates="(row.extract as any).purpose_short_candidates"
-                placeholder="用途精简(用于文件名)"
+                placeholder="用途简称(用于文件名)"
                 :popover-width="320"
                 :max-characters="48"
+                expand-on-focus
                 @overlimit-click="openOverlimitDialog(row)"
               />
               <div

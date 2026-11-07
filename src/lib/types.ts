@@ -1,4 +1,4 @@
-export type GeminiModelId = 'gemini-2.5-flash-lite' | 'gemini-3.0-flash-preview'
+export type GeminiModelId = 'gemini-3.8-flash' | 'gemini-3.5-flash-lite' | 'gemini-3.1-flash-lite'
 
 export type InvoiceExtract = {
   company_name: string
