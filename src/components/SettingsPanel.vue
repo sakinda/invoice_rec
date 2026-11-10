@@ -10,13 +10,36 @@
         </el-form-item>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <el-form-item label="模型">
-            <el-select v-model="modelId" style="width: 100%">
-              <el-option label="⚡ gemini-3.5-flash-lite (官方推荐首选，500 RPD 高吞吐极速)" value="gemini-3.5-flash-lite" />
-              <el-option label="🍃 gemini-3.1-flash-lite (高频低成本，500 RPD)" value="gemini-3.1-flash-lite" />
-              <el-option label="🌟 gemini-3.8-flash (深度推理，已优化 LOW 思考延迟，20 RPD)" value="gemini-3.8-flash" />
-            </el-select>
-          </el-form-item>
+          <div class="flex flex-col gap-4">
+            <el-form-item label="模型">
+              <el-select v-model="modelId" style="width: 100%">
+                <el-option label="⚡ gemini-3.5-flash-lite (官方推荐首选，500 RPD 高吞吐极速)" value="gemini-3.5-flash-lite" />
+                <el-option label="🍃 gemini-3.1-flash-lite (高频低成本，500 RPD)" value="gemini-3.1-flash-lite" />
+                <el-option label="🌟 gemini-3.8-flash (深度推理，已优化 LOW 思考延迟，20 RPD)" value="gemini-3.8-flash" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="并发识别数量 (同时处理发票数)">
+              <div class="flex flex-col gap-2 w-full">
+                <div class="flex items-center gap-3">
+                  <el-input-number
+                    v-model="concurrency"
+                    :min="1"
+                    :max="10"
+                    :step="1"
+                    controls-position="right"
+                    style="width: 130px"
+                  />
+                  <span class="text-xs text-[color:var(--rf-text-muted)]">
+                    当前并发：{{ concurrency }} 个任务同时识别
+                  </span>
+                </div>
+                <div class="text-xs text-[color:var(--rf-text-muted)] leading-relaxed">
+                  单 API Key 免费层建议设为 1~2 以免触发 RPM 限流；配置多个 API Key 时可调高至 3~5 大幅提升批量处理效率。
+                </div>
+              </div>
+            </el-form-item>
+          </div>
 
           <el-form-item label="重命名模板">
             <div class="flex flex-col gap-3 w-full">
@@ -96,11 +119,13 @@ import ExperienceManager from './ExperienceManager.vue'
 import {
   defaultPrompt,
   getApiKeys,
+  getConcurrency,
   getModelId,
   getPrompt,
   getRenameTemplate,
   getSeparator,
   setApiKeys,
+  setConcurrency,
   setModelId,
   setPrompt,
   setRenameTemplate,
@@ -154,6 +179,7 @@ const apiKeysCsv = ref('')
 const prompt = ref('')
 const renameTpl = ref('')
 const modelId = ref<GeminiModelId>('gemini-3.5-flash-lite')
+const concurrency = ref<number>(getConcurrency())
 
 const separator = ref<TemplateSeparator>(getSeparator())
 const selectedTokenKeys = ref<TokenKey[]>(['date', 'company', 'invoice_no', 'purpose_short', 'amount', 'currency'])
@@ -165,6 +191,7 @@ watchEffect(() => {
   apiKeysCsv.value = getApiKeys().join(',')
   prompt.value = getPrompt()
   modelId.value = getModelId()
+  concurrency.value = getConcurrency()
 
   const savedSep = getSeparator()
   separator.value = savedSep
@@ -180,6 +207,15 @@ watch(
   separator,
   (newSep) => {
     setSeparator(newSep)
+  }
+)
+
+watch(
+  concurrency,
+  (newConcurrency) => {
+    if (typeof newConcurrency === 'number' && newConcurrency >= 1) {
+      setConcurrency(newConcurrency)
+    }
   }
 )
 
@@ -238,6 +274,7 @@ function save() {
   setRenameTemplate(renameTpl.value)
   setSeparator(separator.value)
   setModelId(modelId.value)
+  setConcurrency(concurrency.value)
   ElMessage.success('已保存')
 }
 

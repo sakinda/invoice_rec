@@ -6,6 +6,7 @@ const K = {
   renameTpl: 'invoice_rec_ai.rename_tpl',
   modelId: 'invoice_rec_ai.model_id',
   separator: 'invoice_rec_ai.separator',
+  concurrency: 'invoice_rec_ai.concurrency',
   experienceEnabled: 'invoice_rec_ai.experience_enabled',
   companyRules: 'invoice_rec_ai.company_rules'
 } as const
@@ -195,6 +196,20 @@ export function getModelId(): GeminiModelId {
 
 export function setModelId(v: GeminiModelId) {
   localStorage.setItem(K.modelId, v)
+}
+
+export function getConcurrency(): number {
+  const v = localStorage.getItem(K.concurrency)
+  if (!v) return 1
+  const parsed = parseInt(v, 10)
+  if (Number.isNaN(parsed) || parsed < 1) return 1
+  if (parsed > 10) return 10
+  return parsed
+}
+
+export function setConcurrency(v: number) {
+  const clamped = Math.max(1, Math.min(10, Math.floor(v) || 1))
+  localStorage.setItem(K.concurrency, String(clamped))
 }
 
 export function getExperienceEnabled(): boolean {

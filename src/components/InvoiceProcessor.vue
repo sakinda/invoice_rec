@@ -191,7 +191,7 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { SplitInvoice } from '../lib/types'
 import { extractInvoiceByGemini, executeWithKeyRotation, resetGlobalKeyState } from '../lib/gemini'
-import { getApiKeys, getEffectivePrompt, getModelId } from '../lib/storage'
+import { getApiKeys, getConcurrency, getEffectivePrompt, getModelId } from '../lib/storage'
 import ExperienceDialog from './ExperienceDialog.vue'
 import OverlimitDialog from './OverlimitDialog.vue'
 import CandidateSelect from './CandidateSelect.vue'
@@ -357,11 +357,26 @@ async function runExtract() {
   try {
     const modelId = getModelId()
     const prompt = getEffectivePrompt()
+    const concurrency = Math.max(1, getConcurrency() || 1)
     resetGlobalKeyState()
 
-    for (let i = 0; i < props.invoices.length; i++) {
-      await extractOneInvoice(i, keys, modelId, prompt)
+    const total = props.invoices.length
+    let nextIdx = 0
+    let completedCount = 0
+
+    async function worker() {
+      while (nextIdx < total) {
+        const i = nextIdx++
+        await extractOneInvoice(i, keys, modelId, prompt)
+        completedCount++
+        if (concurrency > 1 && completedCount < total) {
+          keyStatusMsg.value = `[并发识别中: 并发数 ${concurrency}] 已完成 ${completedCount}/${total} 张发票...`
+        }
+      }
     }
+
+    const workerCount = Math.min(concurrency, total)
+    await Promise.all(Array.from({ length: workerCount }, () => worker()))
 
     if (!hasKeys.value) return
     keyStatusMsg.value = '抽取流程已完成'
